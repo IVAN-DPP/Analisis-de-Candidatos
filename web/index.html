@@ -5,9 +5,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta
       name="description"
-      content="Panel local para analizar relaciones observadas entre una cuenta de Instagram y las cuentas presentes en sus publicaciones."
+      content="Informe visual y explicable sobre una cuenta de Instagram a partir de archivos JSON."
     />
-    <title>Atlas de cuenta · Instagram</title>
+    <title>Historia de cuenta · Informe Instagram</title>
     <link rel="stylesheet" href="/styles.css" />
     <script type="module" src="/app.js"></script>
   </head>
@@ -15,652 +15,377 @@
     <div class="ambient ambient-one" aria-hidden="true"></div>
     <div class="ambient ambient-two" aria-hidden="true"></div>
 
-    <section class="start-screen" id="startScreen" aria-labelledby="startTitle">
-      <div class="start-shell">
-        <div class="start-brand" aria-label="Aguante Popular">
-          <span class="start-brand-mark" aria-hidden="true"><i></i><i></i><i></i></span>
-          <span>AP · Datos</span>
-        </div>
-
-        <div class="start-card">
-          <p class="start-eyebrow"><span></span> Plataforma de análisis relacional</p>
-          <h1 id="startTitle">Análisis Candidatos<br /><em>Aguante Popular</em></h1>
-          <p class="start-intro">
-            Carga un archivo JSON descargado de <strong>Apify Instagram Scraper</strong> para analizar
-            publicaciones, interacciones, contexto y redes de cuentas.
+    <section class="upload-screen" id="uploadScreen" aria-labelledby="uploadTitle">
+      <div class="upload-shell">
+        <header class="upload-brand">
+          <span class="brand-symbol" aria-hidden="true"><i></i><i></i><i></i></span>
+          <span>Atlas de cuenta</span>
+        </header>
+        <div class="upload-card">
+          <p class="eyebrow"><span></span> Lectura visual de datos públicos</p>
+          <h1 id="uploadTitle">La historia que<br /><em>dejan tus archivos</em></h1>
+          <p class="upload-lead">
+            Carga uno o varios JSON de Instagram y explora publicaciones, respuestas,
+            audiencia, colaboraciones y redes sin necesitar programación.
           </p>
 
-          <div class="start-dropzone" id="startDropZone">
-            <span class="start-upload-icon" aria-hidden="true">↑</span>
-            <div>
-              <strong>Agregar archivo JSON</strong>
-              <p>Arrastra el archivo aquí o selecciónalo desde tu equipo.</p>
+          <div class="drop-zone" id="dropZone" tabindex="0" role="button" aria-label="Seleccionar archivos JSON">
+            <span class="upload-icon" aria-hidden="true">↑</span>
+            <div class="drop-copy">
+              <strong>Arrastra tus archivos aquí</strong>
+              <span>o selecciónalos desde tu equipo · sólo se procesan en memoria</span>
             </div>
-            <button class="button button-primary" id="startUploadButton" type="button">
-              Elegir archivo
-            </button>
-            <input
-              id="startFileInput"
-              type="file"
-              accept="application/json,.json"
-              hidden
-            />
+            <button class="button button-dark" id="chooseFilesButton" type="button">Elegir JSON</button>
+            <input id="fileInput" type="file" accept="application/json,.json" multiple hidden />
           </div>
-
-          <p class="start-status" id="startStatus" role="status" aria-live="polite">
-            Formato requerido: JSON de Apify Instagram Scraper.
+          <p class="upload-status" id="uploadStatus" role="status" aria-live="polite">
+            Aceptamos listas de publicaciones, sobres con varios archivos y exportaciones con campos distintos.
           </p>
-          <button class="resume-button" id="resumeButton" type="button" hidden>
-            Continuar con el archivo cargado actualmente
+          <button class="server-files-button" id="loadServerButton" type="button" hidden>
+            Usar los archivos JSON detectados en el servidor
           </button>
 
-          <div class="start-requirements" aria-label="Requisitos del archivo">
-            <span><i aria-hidden="true">✓</i> Extensión .json</span>
-            <span><i aria-hidden="true">✓</i> Lista de publicaciones</span>
-            <span><i aria-hidden="true">✓</i> Campos del scraper</span>
+          <div class="upload-requirements" aria-label="Qué puede incluir un archivo">
+            <span><b>01</b> Publicaciones y fechas</span>
+            <span><b>02</b> Likes y comentarios</span>
+            <span><b>03</b> Cuentas que interactúan</span>
+            <span><b>04</b> Colaboraciones</span>
           </div>
         </div>
-
-        <footer class="start-credits">
-          <span>Proyecto interno</span>
+        <footer class="upload-footer">
+          <span>Los archivos originales nunca se sobrescriben.</span>
           <strong>Equipo de analítica de datos AP</strong>
         </footer>
       </div>
     </section>
 
     <div class="app-shell" id="appShell" hidden>
+      <div class="legacy-compat" aria-hidden="true" hidden>Análisis Candidatos Aguante Popular · Atlas de cuenta · Equipo de analítica de datos AP<span id="networkSvg"></span><span id="monthlyPostsChart"></span><button id="contextViewButton" type="button"></button><section id="manualPage"></section></div>
       <header class="topbar">
-        <a class="brand" href="/" aria-label="Ir al inicio del panel">
-          <span class="brand-mark" aria-hidden="true">
-            <span></span><span></span><span></span>
-          </span>
+        <a class="brand" href="#overview" aria-label="Ir al resumen">
+          <span class="brand-symbol" aria-hidden="true"><i></i><i></i><i></i></span>
           <span class="brand-copy">
-            <strong>Atlas de cuenta</strong>
-            <small>Inteligencia de relaciones</small>
+            <strong>Historia de cuenta</strong>
+            <small>Lectura de datos de Instagram</small>
           </span>
         </a>
-        <nav class="app-nav" aria-label="Secciones de la aplicación">
-          <button class="app-nav-button active" type="button" data-page="dashboard" aria-selected="true">
-            <span aria-hidden="true">▦</span> Panel
-          </button>
-          <button class="app-nav-button" type="button" data-page="manual" aria-selected="false">
-            <span aria-hidden="true">?</span> Manual
-          </button>
+        <nav class="main-nav" aria-label="Secciones del informe">
+          <a class="nav-link active" href="#overview" data-section="overview">Resumen</a>
+          <a class="nav-link" href="#publications" data-section="publications">Publicaciones</a>
+          <a class="nav-link" href="#audience" data-section="audience">Audiencia</a>
+          <a class="nav-link" href="#collaborations" data-section="collaborations">Colaboraciones</a>
+          <a class="nav-link" href="#networks" data-section="networks">Redes</a>
+          <a class="nav-link" href="#findings" data-section="findings">Hallazgos</a>
         </nav>
         <div class="topbar-actions">
-          <button class="home-button" id="homeButton" type="button" title="Volver a la pantalla inicial">
-            <span aria-hidden="true">⌂</span> Inicio
-          </button>
-          <span class="source-pill" id="sourceStatus">Cargando fuente…</span>
-          <input id="fileInput" type="file" accept="application/json,.json" hidden />
-          <button class="button button-secondary" id="uploadButton" type="button">
-            <span aria-hidden="true">↑</span>
-            Abrir JSON
-          </button>
+          <span class="source-chip" id="sourceChip">Sin fuente cargada</span>
+          <button class="button button-light" id="replaceButton" type="button">Cambiar JSON</button>
         </div>
       </header>
 
       <main>
-        <div class="page-view" id="dashboardPage">
-        <section class="hero" aria-labelledby="mainName">
+        <section class="report-hero" id="overview">
           <div class="hero-copy">
-            <p class="eyebrow"><span></span> Mapeo de interacciones observadas</p>
-            <h1 id="mainName">Cargando cuenta…</h1>
-            <p class="hero-description" id="heroDescription">
-              Calculando relaciones a partir de las publicaciones disponibles.
-            </p>
+            <p class="eyebrow"><span></span> Nivel 1 · ¿Qué ha ocurrido?</p>
+            <h1 id="accountTitle">Cargando cuenta…</h1>
+            <p class="hero-lead" id="heroLead">Preparando una lectura visual de los datos disponibles.</p>
+            <div class="hero-tags" id="heroTags"></div>
           </div>
-          <form class="main-account-form" id="mainForm">
-            <label for="mainAccount">Cuenta principal</label>
-            <div class="input-action">
+          <form class="account-controls" id="accountForm">
+            <label for="mainAccount">Cuenta que se analiza</label>
+            <div class="account-input">
               <span aria-hidden="true">@</span>
-              <input
-                id="mainAccount"
-                name="mainAccount"
-                type="text"
-                autocomplete="off"
-                spellcheck="false"
-                placeholder="nani_rojaa"
-              />
+              <input id="mainAccount" name="mainAccount" type="text" autocomplete="off" spellcheck="false" list="accountSuggestions" />
               <button type="submit">Aplicar</button>
             </div>
-            <small>La cuenta se ubica siempre en el centro de la red.</small>
+            <datalist id="accountSuggestions"></datalist>
+            <label for="scopeSelect">Alcance de publicaciones</label>
+            <select id="scopeSelect">
+              <option value="owned">Publicaciones propias</option>
+              <option value="involving">Propias y colaboraciones</option>
+              <option value="all">Todos los registros</option>
+            </select>
+            <small>El alcance cambia los indicadores y las redes, pero no modifica los archivos.</small>
           </form>
         </section>
 
-        <section class="quality-banner" id="qualityBanner" aria-live="polite">
-          <span class="quality-icon" aria-hidden="true">i</span>
+        <section class="coverage-banner" id="coverageBanner" aria-live="polite">
+          <span class="coverage-icon" aria-hidden="true">i</span>
           <div>
-            <strong>Alcance de los datos</strong>
-            <p id="qualityText">Calculando la cobertura de comentarios disponibles…</p>
+            <strong>Qué se puede y qué no se puede saber</strong>
+            <p id="coverageText">Comprobando la cobertura de la fuente…</p>
           </div>
-          <button class="text-button" id="methodologyButton" type="button">
-            Ver metodología
-          </button>
+          <a href="#data-section" class="text-link">Ver datos disponibles <span aria-hidden="true">↓</span></a>
         </section>
 
-        <section class="kpi-grid" id="kpiGrid" aria-label="Indicadores principales">
-          <article class="kpi-card skeleton-card" aria-hidden="true"></article>
-          <article class="kpi-card skeleton-card" aria-hidden="true"></article>
-          <article class="kpi-card skeleton-card" aria-hidden="true"></article>
-          <article class="kpi-card skeleton-card" aria-hidden="true"></article>
-          <article class="kpi-card skeleton-card" aria-hidden="true"></article>
+        <section class="kpi-grid" id="kpiGrid" aria-label="Indicadores principales"></section>
+
+        <section class="report-section" id="data-section" aria-labelledby="dataTitle">
+          <div class="section-heading">
+            <div>
+              <p class="section-kicker">Antes de interpretar</p>
+              <h2 id="dataTitle">¿Qué datos tenemos?</h2>
+              <p>Cada archivo se explica por separado. Así queda claro qué es una publicación, una cuenta y una interacción.</p>
+            </div>
+            <span class="section-index">01</span>
+          </div>
+          <div class="data-summary panel" id="dataSummary"></div>
+          <div class="inventory-grid" id="inventoryGrid"></div>
+          <div class="data-dictionary panel" id="dataDictionary"></div>
         </section>
 
-        <section class="monthly-section" aria-labelledby="monthlyTitle">
-          <article class="panel monthly-panel">
-            <div class="panel-heading monthly-heading">
-              <div>
-                <p class="section-kicker">Línea de tiempo</p>
-                <h2 id="monthlyTitle">Evolución mensual</h2>
-                <p>
-                  Las barras usan las publicaciones del alcance seleccionado. “Colaboraciones” cuenta
-                  autores distintos registrados en <code>coauthorProducers</code> por publicación.
-                </p>
-              </div>
-              <span class="neutral-badge" id="monthlyRangeBadge">—</span>
+        <section class="report-section" id="publications" aria-labelledby="publicationsTitle">
+          <div class="section-heading">
+            <div>
+              <p class="section-kicker">Nivel 1 · Contenido y respuesta</p>
+              <h2 id="publicationsTitle">Publicaciones</h2>
+              <p>Primero se mira qué se publicó y cómo cambió la interacción; después se detalla con explicación.</p>
             </div>
-            <div class="monthly-chart-grid">
-              <article class="chart-card chart-blue">
-                <div class="chart-card-heading">
-                  <div>
-                    <span class="chart-label">Publicaciones por mes</span>
-                    <strong id="monthlyPostsSummary">—</strong>
-                  </div>
-                  <span class="chart-symbol" aria-hidden="true">▦</span>
-                </div>
-                <div class="bar-chart" id="monthlyPostsChart"></div>
-              </article>
-              <article class="chart-card chart-coral">
-                <div class="chart-card-heading">
-                  <div>
-                    <span class="chart-label">Likes por mes</span>
-                    <strong id="monthlyLikesSummary">—</strong>
-                  </div>
-                  <span class="chart-symbol" aria-hidden="true">♡</span>
-                </div>
-                <div class="bar-chart" id="monthlyLikesChart"></div>
-              </article>
-              <article class="chart-card chart-green">
-                <div class="chart-card-heading">
-                  <div>
-                    <span class="chart-label">Colaboraciones por mes</span>
-                    <strong id="monthlyCollaborationsSummary">—</strong>
-                  </div>
-                  <span class="chart-symbol" aria-hidden="true">↔</span>
-                </div>
-                <div class="bar-chart" id="monthlyCollaborationsChart"></div>
-              </article>
-            </div>
-          </article>
-        </section>
+            <span class="section-index">02</span>
+          </div>
 
-        <section class="workspace-grid" aria-label="Red y resumen de relaciones">
-          <article class="panel network-panel">
-            <div class="panel-heading">
-              <div>
-                <p class="section-kicker" id="networkKicker">Ego network</p>
-                <h2>Red de relación</h2>
-                <p id="networkDescriptionText">
-                  El grosor de cada vínculo representa su ponderación dentro del criterio elegido.
-                </p>
-              </div>
-              <label class="compact-control" for="scopeSelect">
-                Alcance
-                <select id="scopeSelect">
-                  <option value="owned">Publicaciones propias</option>
-                  <option value="involving">Incluye colaboraciones</option>
-                  <option value="all">Todo el archivo</option>
-                </select>
-              </label>
-            </div>
-
-            <div class="network-view-switch" role="tablist" aria-label="Tipo de red">
-              <button
-                id="egoViewButton"
-                class="network-view-button active"
-                type="button"
-                role="tab"
-                aria-selected="true"
-                data-network-view="ego"
-              >
-                <span class="view-symbol" aria-hidden="true">◎</span>
-                <span><strong id="egoViewLabel">Principal ↔ otros</strong><small>Red central ponderada</small></span>
-              </button>
-              <button
-                id="coViewButton"
-                class="network-view-button"
-                type="button"
-                role="tab"
-                aria-selected="false"
-                data-network-view="co"
-              >
-                <span class="view-symbol" aria-hidden="true">⌁</span>
-                <span><strong>Otros ↔ otros</strong><small>Co-comentadores</small></span>
-              </button>
-              <button
-                id="contextViewButton"
-                class="network-view-button"
-                type="button"
-                role="tab"
-                aria-selected="false"
-                data-network-view="context"
-              >
-                <span class="view-symbol" aria-hidden="true">◇</span>
-                <span><strong>Cuenta ↔ contexto</strong><small>Lugares y música</small></span>
-              </button>
-              <p class="view-switch-note" id="viewSwitchNote">
-                La cuenta principal se mantiene fija al centro.
-              </p>
-            </div>
-
-            <div class="network-controls">
-              <label class="compact-control metric-control" for="metricSelect">
-                Criterio de ponderación
-                <select id="metricSelect">
-                  <option value="combined">Combinada (pesos ajustables)</option>
-                  <option value="comments">Comentarios capturados</option>
-                  <option value="commented_posts">publicaciones comentadas</option>
-                  <option value="mentions">menciones en el pie</option>
-                  <option value="tagged">cuentas etiquetadas</option>
-                  <option value="coauthors">coautores</option>
-                </select>
-              </label>
-
-              <button
-                class="weight-toggle"
-                id="weightToggle"
-                type="button"
-                aria-expanded="false"
-                aria-controls="weightPanel"
-              >
-                <span aria-hidden="true">⚖</span>
-                Ajustar pesos
-                <span class="chevron" aria-hidden="true">⌄</span>
-              </button>
-
-              <label class="range-control secondary-control" id="minSharedControl" for="minSharedRange" hidden>
-                <span>Coincidencias mínimas <output id="minSharedValue">1</output></span>
-                <input id="minSharedRange" type="range" min="1" max="3" step="1" value="1" />
-              </label>
-
-              <label class="range-control context-control" id="minContextControl" for="minContextRange" hidden>
-                <span>Repeticiones mínimas <output id="minContextValue">1</output></span>
-                <input id="minContextRange" type="range" min="1" max="5" step="1" value="1" />
-              </label>
-
-              <label class="range-control" for="topRange">
-                <span><span id="topRangeText">Cuentas visibles</span> <output id="topRangeValue">35</output></span>
-                <input id="topRange" type="range" min="10" max="200" step="5" value="35" />
-              </label>
-            </div>
-
-            <div class="weight-panel" id="weightPanel" hidden>
-              <div class="weight-panel-heading">
+          <div class="chart-grid two-thirds">
+            <article class="panel chart-panel chart-wide">
+              <div class="panel-heading">
                 <div>
-                  <strong>Pesos de evidencia</strong>
-                  <span>Cada punto suma una ocurrencia observada.</span>
+                  <h3>Gráfica 1 · Likes por publicación</h3>
+                  <p>Cada barra representa una publicación. Las publicaciones sin likes identificables quedan fuera de la escala.</p>
                 </div>
-                <span class="neutral-badge">Configurable</span>
+                <span class="panel-chip" id="postChartChip">—</span>
               </div>
-              <div class="weight-grid">
-                <label class="weight-control" data-weight="comments">
-                  <span>Comentarios capturados <output id="commentsWeightValue">1</output></span>
-                  <input id="commentsWeight" type="range" min="0" max="5" step="1" value="1" />
-                </label>
-                <label class="weight-control" data-weight="commented_posts">
-                  <span>publicaciones comentadas <output id="commentedPostsWeightValue">1</output></span>
-                  <input id="commentedPostsWeight" type="range" min="0" max="5" step="1" value="1" />
-                </label>
-                <label class="weight-control" data-weight="mentions">
-                  <span>menciones <output id="mentionsWeightValue">1</output></span>
-                  <input id="mentionsWeight" type="range" min="0" max="5" step="1" value="1" />
-                </label>
-                <label class="weight-control" data-weight="tagged">
-                  <span>etiquetas <output id="taggedWeightValue">1</output></span>
-                  <input id="taggedWeight" type="range" min="0" max="5" step="1" value="1" />
-                </label>
-                <label class="weight-control" data-weight="coauthors">
-                  <span>coautores <output id="coauthorsWeightValue">1</output></span>
-                  <input id="coauthorsWeight" type="range" min="0" max="5" step="1" value="1" />
-                </label>
-              </div>
-            </div>
-
-            <div class="co-comment-note" id="coCommentNote" hidden>
-              <span class="co-note-icon" aria-hidden="true">i</span>
-              <div>
-                <strong>Relación inferida por co-comentario</strong>
-                <p>
-                  Una arista une dos cuentas que comentaron la misma publicación. No demuestra que se
-                  conozcan, se hablen o exista una interacción directa entre ellas.
-                </p>
-              </div>
-              <div class="co-quality-counts" id="coQualityCounts">—</div>
-            </div>
-
-            <div class="co-comment-note context-note" id="contextNote" hidden>
-              <span class="co-note-icon" aria-hidden="true">◇</span>
-              <div>
-                <strong>Relación de la cuenta con su contexto</strong>
-                <p>
-                  Cada arista une la cuenta principal con un <code>Location Name</code> o una pista de
-                  <code>Music Info</code>. El peso es la cantidad de publicaciones que comparten ese contexto.
-                </p>
-              </div>
-              <div class="co-quality-counts" id="contextQualityCounts">—</div>
-            </div>
-
-            <div class="network-toolbar">
-              <div class="legend" id="egoLegend" aria-label="Colores de las fuentes">
-                <span><i class="legend-dot comment"></i> Comentarios</span>
-                <span><i class="legend-dot mention"></i> Menciones</span>
-                <span><i class="legend-dot tag"></i> Etiquetas</span>
-                <span><i class="legend-dot coauthor"></i> Coautoría</span>
-              </div>
-              <div class="legend" id="coLegend" aria-label="Peso de los vínculos de co-comentario" hidden>
-                <span><i class="legend-dot weak-edge"></i> 1 publicación</span>
-                <span><i class="legend-dot medium-edge"></i> 2 publicaciones</span>
-                <span><i class="legend-dot strong-edge"></i> 3+ publicaciones</span>
-              </div>
-              <div class="legend" id="contextLegend" aria-label="Tipos de contexto" hidden>
-                <span><i class="legend-dot location"></i> Location Name</span>
-                <span><i class="legend-dot music"></i> Music Info</span>
-              </div>
-              <div class="network-toolbar-actions">
-                <span class="network-hint" id="networkHint">Pasa sobre un nodo y haz clic para inspeccionarlo</span>
-                <div class="zoom-controls" aria-label="Controles de zoom de la red">
-                  <button id="zoomOutButton" type="button" title="Alejar" aria-label="Alejar">−</button>
-                  <output id="zoomLevel" aria-live="polite">100%</output>
-                  <button id="zoomInButton" type="button" title="Acercar" aria-label="Acercar">+</button>
-                  <button id="resetZoomButton" class="reset-zoom" type="button">Restablecer vista</button>
+              <div class="chart-area tall" id="likesByPostChart"></div>
+              <div class="chart-explanation" data-explanation="postLikes"></div>
+              <div class="percentile-strip" id="percentileStrip"></div>
+            </article>
+            <article class="panel chart-panel">
+              <div class="panel-heading">
+                <div>
+                  <h3>Gráfica 2 · Evolución de likes</h3>
+                  <p>Suma mensual de likes conocidos y publicaciones con fecha.</p>
                 </div>
               </div>
-            </div>
-
-            <div class="network-stage" id="networkStage" aria-busy="true">
-              <svg
-                id="networkSvg"
-                class="interactive-network"
-                viewBox="0 0 1000 680"
-                role="img"
-                aria-labelledby="networkTitle networkDescription"
-              >
-                <title id="networkTitle">Red de relaciones de la cuenta principal</title>
-                <desc id="networkDescription">
-                  La cuenta principal aparece en el centro y los vínculos se ponderan por la fuente elegida.
-                </desc>
-                <defs>
-                  <radialGradient id="centerGlow" cx="50%" cy="50%" r="50%">
-                    <stop offset="0%" stop-color="#ff6b5f" stop-opacity="0.34"></stop>
-                    <stop offset="72%" stop-color="#ff6b5f" stop-opacity="0.05"></stop>
-                    <stop offset="100%" stop-color="#ff6b5f" stop-opacity="0"></stop>
-                  </radialGradient>
-                  <filter id="centerShadow" x="-50%" y="-50%" width="200%" height="200%">
-                    <feDropShadow dx="0" dy="8" stdDeviation="10" flood-color="#172033" flood-opacity="0.22"></feDropShadow>
-                  </filter>
-                </defs>
-                <circle class="network-glow" id="centerGlowCircle" cx="500" cy="330" r="116"></circle>
-                <g id="networkEdges"></g>
-                <g id="networkNodes"></g>
-              </svg>
-              <div class="network-tooltip" id="networkTooltip" role="tooltip" hidden></div>
-              <div class="network-empty" id="networkEmpty" hidden>
-                <span aria-hidden="true">⌁</span>
-                <strong id="networkEmptyTitle">No hay vínculos con el criterio elegido</strong>
-                <p id="networkEmptyText">Cambia la fuente de relación o aumenta alguno de sus pesos.</p>
+              <div class="chart-area" id="likesTimelineChart"></div>
+              <div class="chart-explanation" data-explanation="likesTimeline"></div>
+            </article>
+          </div>
+          <div class="chart-grid three">
+            <article class="panel chart-panel">
+              <div class="panel-heading">
+                <div>
+                  <h3>Gráfica 3 · Frecuencia</h3>
+                  <p>Publicaciones por mes, sin rellenar meses sin fecha.</p>
+                </div>
               </div>
-              <div class="network-loading" id="networkLoading">
-                <span></span><span></span><span></span>
-                <p>Construyendo la red…</p>
+              <div class="chart-area small" id="postingFrequencyChart"></div>
+              <div class="chart-explanation" data-explanation="frequency"></div>
+            </article>
+            <article class="panel chart-panel">
+              <div class="panel-heading">
+                <div>
+                  <h3>Distribución de likes</h3>
+                  <p>Histograma: cada barra es un rango de likes.</p>
+                </div>
               </div>
-            </div>
-
-            <div class="network-footer">
-              <p id="networkSummary">—</p>
-              <p id="networkFooterNote"><i class="center-example"></i> La cuenta central no participa en su propio puntaje.</p>
-            </div>
+              <div class="chart-area small" id="likesHistogramChart"></div>
+              <div class="chart-explanation" data-explanation="histogram"></div>
+            </article>
+            <article class="panel chart-panel">
+              <div class="panel-heading">
+                <div>
+                  <h3>Caja de likes</h3>
+                  <p>La línea marca el rango habitual; los puntos son valores atípicos.</p>
+                </div>
+              </div>
+              <div class="chart-area small" id="likesBoxplot"></div>
+              <div class="chart-explanation" data-explanation="boxplot"></div>
+            </article>
+          </div>
+          <article class="panel chart-panel performance-panel">
+            <div class="panel-heading"><div><h3>Publicaciones vs. interacción</h3><p>Cada punto es una publicación: el eje horizontal ordena el tiempo y el vertical muestra likes.</p></div><span class="panel-chip">Descriptivo</span></div>
+            <div class="chart-area small" id="performanceChart"></div>
+            <div class="chart-explanation" data-explanation="performance"></div>
           </article>
 
-          <aside class="sidebar-stack" aria-label="Lectura de la red">
-            <article class="panel inspector-panel" id="inspectorPanel">
-              <p class="section-kicker">Inspector de nodo</p>
-              <div id="accountInspector">
-                <div class="central-summary">
-                  <div class="avatar avatar-center" aria-hidden="true">@</div>
-                  <div>
-                    <h3>Cuenta central</h3>
-                    <p>Selecciona una cuenta conectada para ver su evidencia.</p>
-                  </div>
-                </div>
-              </div>
-              <a
-                class="profile-link"
-                id="mainProfileLink"
-                href="https://www.instagram.com/nani_rojaa/"
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                Abrir perfil principal <span aria-hidden="true">↗</span>
-              </a>
-            </article>
-
-            <article class="panel mix-panel">
-              <div class="panel-heading compact">
-                <div>
-                  <p class="section-kicker">Composición</p>
-                  <h2>Evidencia observada</h2>
-                </div>
-              </div>
-              <div class="mix-list" id="mixList">
-                <div class="empty-line"></div>
-                <div class="empty-line short"></div>
-                <div class="empty-line"></div>
-              </div>
-              <p class="panel-footnote" id="mixFootnote">—</p>
-            </article>
-
-            <article class="panel methodology-panel">
-              <p class="section-kicker">Cómo leerla</p>
-              <h2>Una red, no una clasificación</h2>
-              <p>
-                El tamaño y el grosor expresan frecuencia observada en este archivo, no influencia,
-                popularidad o afinidad. En la red otros–otros solo se observa co-comentario en una
-                publicación; no queda demostrada una relación directa.
-              </p>
-              <div class="formula" aria-label="Fórmula de puntuación combinada">
-                <span>peso</span>
-                <b>=</b>
-                <span>Σ</span>
-                <small>fuente × valor observado</small>
-              </div>
-            </article>
-          </aside>
-        </section>
-
-        <section class="lower-grid" aria-label="Detalle de cuentas y publicaciones">
           <article class="panel table-panel">
             <div class="panel-heading table-heading">
               <div>
-                <p class="section-kicker" id="tableKicker">Ranking</p>
-                <h2 id="tableTitle">Cuentas relacionadas</h2>
-                <p id="tableSubtitle">—</p>
+                <h3>Tabla de publicaciones</h3>
+                <p>La tabla conserva fecha, tipo, colaboración e indicadores sin alterar el JSON.</p>
               </div>
               <div class="table-actions">
-                <label class="search-control" for="accountSearch">
-                  <span aria-hidden="true">⌕</span>
-                  <input
-                    id="accountSearch"
-                    type="search"
-                    placeholder="Buscar cuenta"
-                    autocomplete="off"
-                  />
-                </label>
-                <button class="button button-secondary compact-button" id="downloadCsv" type="button">
-                  Descargar CSV
-                </button>
+                <input id="postSearch" type="search" placeholder="Buscar publicación" aria-label="Buscar publicación" />
+                <button class="button button-light" id="downloadPosts" type="button">Descargar CSV</button>
               </div>
             </div>
             <div class="table-scroll">
               <table>
-                <thead>
-                  <tr>
-                    <th id="accountColumn" scope="col">Cuenta</th>
-                    <th id="scoreColumn" scope="col" class="numeric">Puntaje</th>
-                    <th id="commentsColumn" scope="col" class="numeric" title="Comentarios presentes en latestComments">Comentarios</th>
-                    <th id="postsColumn" scope="col" class="numeric" title="publicaciones distintas con comentarios capturados">publicaciones</th>
-                    <th id="mentionsColumn" scope="col" class="numeric">menciones</th>
-                    <th id="taggedColumn" class="numeric" scope="col">etiquetas</th>
-                    <th id="coauthorsColumn" class="numeric" scope="col">coautores</th>
-                  </tr>
-                </thead>
-                <tbody id="relationshipsBody">
-                  <tr><td colspan="7" class="table-empty">Cargando relaciones…</td></tr>
-                </tbody>
+                <thead><tr><th>Fecha</th><th>Publicación</th><th class="numeric">Likes</th><th>Colaboración</th><th>Colaborador</th><th>Tipo</th></tr></thead>
+                <tbody id="postsBody"><tr><td colspan="6" class="empty-cell">Cargando publicaciones…</td></tr></tbody>
               </table>
             </div>
-            <div class="table-footer" id="tableFooter">—</div>
+            <div class="table-footer" id="postsFooter">—</div>
           </article>
 
-          <article class="panel posts-panel">
-            <div class="panel-heading compact">
-              <div>
-                <p class="section-kicker">Contenido</p>
-                <h2>Publicaciones destacadas</h2>
-                <p>Ordenadas por likes + comentarios reportados.</p>
-              </div>
-            </div>
-            <div class="post-list" id="postList">
-              <div class="post-skeleton"></div>
-              <div class="post-skeleton"></div>
-              <div class="post-skeleton"></div>
-            </div>
+          <div class="subsection-heading">
+            <div><p class="section-kicker">Valores extremos</p><h3>Publicaciones excepcionales</h3></div>
+            <p>Se marcan por su distancia al comportamiento habitual, no por una causa demostrada.</p>
+          </div>
+          <div class="exception-grid" id="exceptionsGrid"></div>
+          <article class="panel chart-panel content-types-panel">
+            <div class="panel-heading"><div><h3>Tipos de publicación</h3><p>La clasificación usa el tipo técnico del JSON; no interpreta el significado del contenido.</p></div></div>
+            <div id="contentTypes"></div>
+            <div class="chart-explanation" data-explanation="contentTypes"></div>
           </article>
         </section>
-        </div>
 
-        <section class="page-view manual-page" id="manualPage" hidden>
-          <header class="manual-hero">
+        <section class="report-section" id="audience" aria-labelledby="audienceTitle">
+          <div class="section-heading">
             <div>
-              <p class="eyebrow"><span></span> Guía de uso e interpretación</p>
-              <h1>Manual del Atlas</h1>
-              <p>
-                Aprende qué mide cada red, cómo se calculan las series mensuales y qué decisiones
-                debe tomar antes de comparar cuentas.
-              </p>
+              <p class="section-kicker">Nivel 2 y 3 · Quiénes y cuánto</p>
+              <h2 id="audienceTitle">Audiencia</h2>
+              <p>El mapa sólo incluye cuentas que el archivo permite identificar. La diferencia entre esto y el alcance total es importante.</p>
             </div>
-            <button class="button button-primary" id="backToDashboard" type="button">← Volver al panel</button>
-          </header>
-
-          <section class="manual-source panel" aria-label="Resumen del archivo cargado">
-            <div>
-              <span>Archivo</span>
-              <strong id="manualSourceName">—</strong>
-            </div>
-            <div>
-              <span>Cuenta detectada</span>
-              <strong id="manualAccount">—</strong>
-            </div>
-            <div>
-              <span>Publicaciones analizadas</span>
-              <strong id="manualPostCount">—</strong>
-            </div>
-            <div>
-              <span>Cobertura de comentarios</span>
-              <strong id="manualCoverage">—</strong>
-            </div>
-          </section>
-
-          <div class="manual-grid">
-            <article class="manual-card panel">
-              <span class="manual-number">01</span>
-              <h2>Cargar cualquier cuenta</h2>
-              <ol>
-                <li>Pulsa <strong>Abrir JSON</strong> y selecciona un archivo generado por el mismo scraper.</li>
-                <li>La app toma como cuenta principal la autora con más publicaciones del archivo.</li>
-                <li>El alcance inicial usa solo publicaciones propias; puedes incluir colaboraciones o todo el JSON.</li>
-              </ol>
-              <p>El archivo se procesa localmente y puede reemplazarse sin modificar el original.</p>
+            <span class="section-index">03</span>
+          </div>
+          <div class="audience-summary" id="audienceSummary"></div>
+          <div class="chart-grid two">
+            <article class="panel chart-panel">
+              <div class="panel-heading">
+                <div>
+                  <h3>Mapa de audiencia</h3>
+                  <p>La cuenta analizada está al centro. El tamaño sigue la frecuencia identificada.</p>
+                </div>
+                <span class="panel-chip" id="audienceMapChip">—</span>
+              </div>
+              <div class="network-stage" id="audienceNetworkStage">
+                <svg id="audienceNetworkSvg" viewBox="0 0 1000 620" role="img" aria-labelledby="audienceNetworkTitle audienceNetworkDesc">
+                  <title id="audienceNetworkTitle">Mapa de audiencia de la cuenta</title>
+                  <desc id="audienceNetworkDesc">Cuentas que interactúan alrededor de la cuenta principal.</desc>
+                  <g id="audienceNetworkEdges"></g><g id="audienceNetworkNodes"></g>
+                </svg>
+                <div class="network-legend" id="audienceNetworkLegend"></div>
+                <div class="network-empty" id="audienceNetworkEmpty" hidden>No hay identidades de interacción en la fuente.</div>
+              </div>
+              <div class="chart-explanation" data-explanation="audienceMap"></div>
             </article>
-
-            <article class="manual-card panel">
-              <span class="manual-number">02</span>
-              <h2>Usar las redes</h2>
-              <dl class="manual-definition-list">
-                <dt>Cuenta ↔ otros</dt>
-                <dd>Puntúa comentarios, publicaciones comentadas, menciones, etiquetas y coautores.</dd>
-                <dt>Otros ↔ otros</dt>
-                <dd>Une co-comentadores de una misma publicación. Los nodos centrales y componentes densos quedan más cerca.</dd>
-                <dt>Cuenta ↔ contexto</dt>
-                <dd>Relaciona la cuenta con cada <code>Location Name</code> y <code>Music Info</code> observado.</dd>
-              </dl>
-            </article>
-
-            <article class="manual-card panel">
-              <span class="manual-number">03</span>
-              <h2>Interpretar tamaños y pesos</h2>
-              <p>
-                El radio y el grosor son proporcionales a la frecuencia observada. Un valor alto significa
-                “apareció muchas veces en este archivo”, no mayor influencia, popularidad ni cercanía social.
-              </p>
-              <ul>
-                <li>En la red central, el puntaje combinado suma fuentes con los pesos elegidos.</li>
-                <li>En co-comentarios, el peso es el número de publicaciones compartidas.</li>
-                <li>En contexto, el peso es el número de publicaciones con el mismo lugar o pista.</li>
-              </ul>
-            </article>
-
-            <article class="manual-card panel">
-              <span class="manual-number">04</span>
-              <h2>Leer las gráficas mensuales</h2>
-              <ul>
-                <li><strong>Publicaciones:</strong> cantidad de publicaciones con fecha en cada mes.</li>
-                <li><strong>Likes:</strong> suma de <code>likesCount</code> para esas publicaciones.</li>
-                <li><strong>Colaboraciones:</strong> autores distintos en <code>coauthorProducers</code>, contados una vez por publicación y mes.</li>
-              </ul>
-              <p>Los meses sin publicaciones no se dibujan; los registros sin fecha se excluyen de las series.</p>
-            </article>
-
-            <article class="manual-card panel">
-              <span class="manual-number">05</span>
-              <h2>Zoom y exploración</h2>
-              <p>
-                Usa la rueda del ratón o los botones <strong>+</strong>, <strong>−</strong> y
-                <strong>Restablecer vista</strong>. Arrastra el fondo para mover la red. Pulsa nodos o aristas
-                para abrir su evidencia y usa el filtro mínimo para concentrar los vínculos más repetidos.
-              </p>
-            </article>
-
-            <article class="manual-card panel">
-              <span class="manual-number">06</span>
-              <h2>Evitar sobreinterpretaciones</h2>
-              <ul>
-                <li><code>latestComments</code> es una muestra; muchos comentarios reportados no tienen cuenta identificable.</li>
-                <li>Dos co-comentadores no necesariamente se conocen o se escriben directamente.</li>
-                <li>Una ubicación etiqueta contenido; no demuestra presencia física ni residencia.</li>
-                <li>Music Info solo aparece en publicaciones donde el scraper capturó audio.</li>
-                <li>Los likes son agregados y no revelan quién los hizo.</li>
-              </ul>
+            <article class="panel chart-panel">
+              <div class="panel-heading">
+                <div>
+                  <h3>Concentración de la interacción</h3>
+                  <p>Qué porcentaje representa el top 5, 10 y 20 de cuentas.</p>
+                </div>
+              </div>
+              <div class="chart-area" id="concentrationChart"></div>
+              <div class="chart-explanation" data-explanation="concentration"></div>
             </article>
           </div>
+          <div class="chart-grid two">
+            <article class="panel chart-panel">
+              <div class="panel-heading"><div><h3>Curva de Lorenz</h3><p>Una curva cerca de la diagonal indicaría reparto más uniforme.</p></div></div>
+              <div class="chart-area small" id="lorenzChart"></div>
+              <div class="chart-explanation" data-explanation="lorenz"></div>
+            </article>
+            <article class="panel chart-panel">
+              <div class="panel-heading"><div><h3>Recurrencia</h3><p>Categorías construidas a partir de frecuencia y ventana temporal.</p></div></div>
+              <div class="chart-area small" id="recurrenceChart"></div>
+              <div class="chart-explanation" data-explanation="recurrence"></div>
+            </article>
+          </div>
+          <article class="panel table-panel">
+            <div class="panel-heading table-heading">
+              <div><h3>Cuentas que interactúan</h3><p>Ordenadas por número de interacciones identificadas.</p></div>
+              <input id="audienceSearch" type="search" placeholder="Buscar cuenta" aria-label="Buscar cuenta" />
+            </div>
+            <div class="table-scroll audience-table-scroll">
+              <table><thead><tr><th>Cuenta</th><th class="numeric">Interacciones</th><th class="numeric">Publicaciones</th><th>Primera aparición</th><th>Última aparición</th><th>Categoría</th></tr></thead><tbody id="audienceBody"></tbody></table>
+            </div>
+            <div class="table-footer" id="audienceFooter">—</div>
+          </article>
+          <article class="panel heatmap-panel">
+            <div class="panel-heading"><div><h3>Publicación × cuenta</h3><p>Un mapa de calor muestra qué cuentas aparecen juntas en cada publicación.</p></div><span class="panel-chip" id="heatmapChip">—</span></div>
+            <div class="chart-area heatmap-area" id="audienceHeatmap"></div>
+            <div class="chart-explanation" data-explanation="heatmap"></div>
+          </article>
+        </section>
 
-          <aside class="manual-warning">
-            <strong>Uso responsable</strong>
-            <p>
-              Estos indicadores describen contenido y actividad pública observada. No deben usarse para
-              inferir atributos personales, orientación, posiciones políticas u otras conclusiones que el JSON no contiene.
-            </p>
-            <ul id="manualLimitations"></ul>
-          </aside>
+        <section class="report-section" id="collaborations" aria-labelledby="collaborationsTitle">
+          <div class="section-heading">
+            <div>
+              <p class="section-kicker">Nivel 1 y 2 · Con quién y con qué diferencia</p>
+              <h2 id="collaborationsTitle">Colaboraciones</h2>
+              <p>Se separa la colaboración registrada de la interacción observada; una cuenta puede aparecer en una y no en la otra.</p>
+            </div>
+            <span class="section-index">04</span>
+          </div>
+          <div class="chart-grid two">
+            <article class="panel chart-panel"><div class="panel-heading"><div><h3>Colaboradores vs. colaboraciones</h3><p>Top de cuentas por número de publicaciones en las que aparecen.</p></div></div><div class="chart-area" id="collaborationChart"></div><div class="chart-explanation" data-explanation="collaborators"></div></article>
+            <article class="panel chart-panel"><div class="panel-heading"><div><h3>Evolución de colaboraciones</h3><p>Colaboraciones distintas por mes.</p></div></div><div class="chart-area" id="collaborationTimelineChart"></div><div class="chart-explanation" data-explanation="collaborationTimeline"></div></article>
+          </div>
+          <article class="panel comparison-panel">
+            <div class="panel-heading"><div><h3>Publicaciones colaborativas vs. no colaborativas</h3><p>Comparación descriptiva; no demuestra que una característica produzca likes.</p></div></div>
+            <div class="comparison-bars" id="collaborationComparison"></div>
+            <div class="chart-explanation" data-explanation="collaborationComparison"></div>
+          </article>
+          <article class="panel table-panel">
+            <div class="panel-heading table-heading"><div><h3>Relación entre interacción y colaboración</h3><p>Una matriz para ver qué cuentas aparecen en ambas redes.</p></div><span class="panel-chip" id="overlapChip">—</span></div>
+            <div class="table-scroll"><table><thead><tr><th>Cuenta</th><th class="numeric">Interacciones</th><th class="numeric">Colaboraciones</th><th>En ambas redes</th><th>Tipo de presencia</th></tr></thead><tbody id="overlapBody"></tbody></table></div>
+            <div class="table-footer" id="overlapFooter">—</div>
+          </article>
+        </section>
+
+        <section class="report-section" id="networks" aria-labelledby="networksTitle">
+          <div class="section-heading">
+            <div>
+              <p class="section-kicker">Nivel 4 · Estructura</p>
+              <h2 id="networksTitle">Redes</h2>
+              <p>Una red muestra conexiones observadas. El tamaño y el grosor ayudan a leer repetición, no una medida de influencia.</p>
+            </div>
+            <span class="section-index">05</span>
+          </div>
+          <article class="panel network-panel-large">
+            <div class="panel-heading network-heading">
+              <div><h3 id="networkTitle">Red de interacción</h3><p id="networkDescription">Cuentas alrededor de la cuenta principal.</p></div>
+              <div class="network-tabs" role="tablist" aria-label="Tipo de red"><button class="network-tab active" type="button" data-network="interaction">Interacción</button><button class="network-tab" type="button" data-network="collaboration">Colaboración</button><button class="network-tab" type="button" data-network="cooccurrence">Coincidencia</button><button class="button button-light network-export" id="downloadNetwork" type="button">Exportar CSV</button></div>
+            </div>
+            <div class="network-stage large" id="mainNetworkStage">
+              <svg id="mainNetworkSvg" viewBox="0 0 1000 650" role="img" aria-labelledby="mainNetworkTitle mainNetworkDesc"><title id="mainNetworkTitle">Red de cuentas</title><desc id="mainNetworkDesc">Visualización de vínculos observados.</desc><g id="mainNetworkEdges"></g><g id="mainNetworkNodes"></g></svg>
+              <div class="network-legend" id="mainNetworkLegend"></div>
+              <div class="network-empty" id="mainNetworkEmpty" hidden>No hay vínculos para esta red.</div>
+            </div>
+            <div class="network-footer" id="mainNetworkFooter">—</div>
+            <div class="community-strip" id="communitySummary"></div>
+            <div class="chart-explanation" data-explanation="network"></div>
+          </article>
+          <div class="chart-grid two">
+            <article class="panel chart-panel"><div class="panel-heading"><div><h3>Comparación de redes</h3><p>Presencia de las mismas cuentas en interacción y colaboración.</p></div></div><div class="chart-area small" id="networkComparisonChart"></div><div class="chart-explanation" data-explanation="networkComparison"></div></article>
+            <article class="panel chart-panel"><div class="panel-heading"><div><h3>Cuentas puente</h3><p>Posiciones que conectan partes de la red de coincidencia.</p></div></div><div class="table-scroll bridge-scroll"><table><thead><tr><th>Cuenta</th><th class="numeric">Grado</th><th class="numeric">Betweenness</th></tr></thead><tbody id="bridgeBody"></tbody></table></div><div class="chart-explanation" data-explanation="bridges"></div></article>
+          </div>
+        </section>
+
+        <section class="report-section" id="evolution" aria-labelledby="evolutionTitle">
+          <div class="section-heading">
+            <div><p class="section-kicker">Nivel 5 · Cambios</p><h2 id="evolutionTitle">Evolución</h2><p>La línea temporal ayuda a ver cuándo aparecen y desaparecen señales; no convierte coincidencia en causa.</p></div><span class="section-index">06</span>
+          </div>
+          <article class="panel chart-panel"><div class="panel-heading"><div><h3>Línea temporal de la cuenta</h3><p>Publicaciones, likes conocidos, comentarios y colaboraciones por mes.</p></div></div><div class="chart-area large-chart" id="evolutionChart"></div><div class="chart-explanation" data-explanation="evolution"></div></article>
+          <article class="panel chart-panel"><div class="panel-heading"><div><h3>Historia de la audiencia</h3><p>Cuentas activas, nuevas y que dejan de aparecer en cada periodo.</p></div></div><div class="chart-area" id="audienceTimelineChart"></div><div class="chart-explanation" data-explanation="audienceTimeline"></div></article>
+        </section>
+
+        <section class="report-section" id="findings" aria-labelledby="findingsTitle">
+          <div class="section-heading">
+            <div><p class="section-kicker">Nivel 6 · Lectura final</p><h2 id="findingsTitle">Hallazgos, preguntas y límites</h2><p>La conclusión más importante siempre incluye la evidencia que la sostiene y lo que todavía no se puede saber.</p></div><span class="section-index">07</span>
+          </div>
+          <div class="findings-grid" id="findingsGrid"></div>
+          <div class="closing-grid">
+            <article class="panel open-questions"><div class="panel-heading"><div><h3>Preguntas que quedan abiertas</h3><p>Lo que los datos permiten investigar, pero no responder por sí solos.</p></div></div><ul id="questionsList"></ul></article>
+            <article class="panel limitations-panel"><div class="panel-heading"><div><h3>Limitaciones</h3><p>Qué falta y por qué hay que cuidar la interpretación.</p></div></div><ul id="limitationsList"></ul></article>
+          </div>
         </section>
       </main>
 
-      <footer class="site-footer">
-        <p>Equipo de analítica de datos AP · Procesamiento local</p>
-        <p id="generatedAt">—</p>
-      </footer>
+      <footer class="site-footer"><span>Historia de cuenta · procesamiento local y sin modificar los originales</span><span id="generatedAt">—</span></footer>
     </div>
 
+    <div class="loading-overlay" id="loadingOverlay" hidden><div class="loader-card"><span class="loader-bars"><i></i><i></i><i></i></span><strong id="loadingTitle">Leyendo los archivos…</strong><p id="loadingText">Preparando una copia derivada sin tocar el original.</p></div></div>
     <div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
   </body>
 </html>

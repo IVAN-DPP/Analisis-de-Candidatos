@@ -1,270 +1,81 @@
-import { renderMonthlyCharts } from "./js/charts.js";
-import {
-  escapeHtml,
-  formatDate,
-  formatMonthRange,
-  formatNumber,
-  formatPercent,
-  initials,
-  normalizeSearch,
-  postUrl,
-  profileUrl,
-} from "./js/formatters.js";
-import { createNetworkCamera } from "./js/network-camera.js";
-import {
-  layoutContextNetwork,
-  layoutEgoNetwork,
-  layoutSecondaryNetwork,
-} from "./js/network-layout.js";
-
-const SVG_NS = "http://www.w3.org/2000/svg";
-
-const SOURCE_META = {
-  comments: { label: "Comentarios capturados", color: "#3b6ef5" },
-  commented_posts: { label: "Publicaciones comentadas", color: "#3b6ef5" },
-  mentions: { label: "Menciones", color: "#c44ec5" },
-  tagged: { label: "Etiquetas", color: "#e89a24" },
-  coauthors: { label: "Coautores", color: "#1d9a6c" },
-};
-
-const SCOPE_LABELS = {
-  owned: "Publicaciones propias",
-  involving: "Publicaciones propias y colaboraciones",
-  all: "Todo el archivo",
-};
-
-const METRIC_LABELS = {
-  combined: "combinada",
-  comments: "Comentarios capturados",
-  commented_posts: "publicaciones comentadas",
-  mentions: "menciones",
-  tagged: "cuentas etiquetadas",
-  coauthors: "coautores",
-};
-
 const state = {
   data: null,
-  networkView: "ego",
-  metric: "combined",
-  minSharedPosts: 1,
-  minContextPosts: 1,
-  currentPage: "dashboard",
-  serverStatus: null,
-  weights: {
-    comments: 1,
-    commented_posts: 1,
-    mentions: 1,
-    tagged: 1,
-    coauthors: 1,
-  },
-  selectedUsername: null,
-  selectedEdgeId: null,
-  selectedContextId: null,
-  topLimit: 35,
-  search: "",
+  sourceStatus: null,
+  network: "interaction",
+  postSearch: "",
+  audienceSearch: "",
   loading: false,
   toastTimer: null,
 };
 
-const elements = {};
-let networkCamera = null;
+const $ = (id) => document.getElementById(id);
+const numberFormatter = new Intl.NumberFormat("es-ES");
+const compactFormatter = new Intl.NumberFormat("es-ES", { notation: "compact", maximumFractionDigits: 1 });
+const percentFormatter = new Intl.NumberFormat("es-ES", { style: "percent", minimumFractionDigits: 1, maximumFractionDigits: 1 });
 
-function cacheElements() {
-  const ids = [
-    "startScreen",
-    "appShell",
-    "startDropZone",
-    "startUploadButton",
-    "startFileInput",
-    "startStatus",
-    "resumeButton",
-    "homeButton",
-    "sourceStatus",
-    "uploadButton",
-    "fileInput",
-    "dashboardPage",
-    "manualPage",
-    "backToDashboard",
-    "mainName",
-    "heroDescription",
-    "mainForm",
-    "mainAccount",
-    "qualityBanner",
-    "qualityText",
-    "methodologyButton",
-    "kpiGrid",
-    "scopeSelect",
-    "networkKicker",
-    "networkDescriptionText",
-    "networkDescription",
-    "egoViewButton",
-    "egoViewLabel",
-    "coViewButton",
-    "contextViewButton",
-    "viewSwitchNote",
-    "metricSelect",
-    "weightToggle",
-    "weightPanel",
-    "topRange",
-    "topRangeText",
-    "topRangeValue",
-    "commentsWeight",
-    "commentsWeightValue",
-    "commentedPostsWeight",
-    "commentedPostsWeightValue",
-    "mentionsWeight",
-    "mentionsWeightValue",
-    "taggedWeight",
-    "taggedWeightValue",
-    "coauthorsWeight",
-    "coauthorsWeightValue",
-    "minSharedControl",
-    "minSharedRange",
-    "minSharedValue",
-    "coCommentNote",
-    "coQualityCounts",
-    "minContextControl",
-    "minContextRange",
-    "minContextValue",
-    "contextNote",
-    "contextQualityCounts",
-    "networkStage",
-    "networkSvg",
-    "networkEdges",
-    "networkNodes",
-    "networkEmpty",
-    "networkEmptyTitle",
-    "networkEmptyText",
-    "networkLoading",
-    "networkTooltip",
-    "networkSummary",
-    "egoLegend",
-    "coLegend",
-    "contextLegend",
-    "networkHint",
-    "zoomInButton",
-    "zoomOutButton",
-    "resetZoomButton",
-    "zoomLevel",
-    "networkFooterNote",
-    "centerGlowCircle",
-    "accountInspector",
-    "mainProfileLink",
-    "mixList",
-    "mixFootnote",
-    "tableKicker",
-    "tableTitle",
-    "accountColumn",
-    "scoreColumn",
-    "commentsColumn",
-    "postsColumn",
-    "mentionsColumn",
-    "taggedColumn",
-    "coauthorsColumn",
-    "tableSubtitle",
-    "accountSearch",
-    "downloadCsv",
-    "relationshipsBody",
-    "tableFooter",
-    "postList",
-    "generatedAt",
-    "monthlyRangeBadge",
-    "manualSourceName",
-    "manualAccount",
-    "manualPostCount",
-    "manualCoverage",
-    "manualLimitations",
-    "toast",
-  ];
+function formatNumber(value) {
+  return numberFormatter.format(Number(value) || 0);
+}
 
-  for (const id of ids) {
-    elements[id] = document.getElementById(id);
+function formatCompact(value) {
+  return compactFormatter.format(Number(value) || 0);
+}
+
+function formatPercent(value) {
+  return percentFormatter.format(Number(value) || 0);
+}
+
+function escapeHtml(value) {
+  return String(value ?? "").replace(/[&<>'"]/g, (character) => ({
+    "&": "&amp;",
+    "<": "&lt;",
+    ">": "&gt;",
+    "'": "&#39;",
+    '"': "&quot;",
+  })[character]);
+}
+
+function safeUrl(value) {
+  try {
+    const url = new URL(String(value || ""), window.location.origin);
+    return ["http:", "https:"].includes(url.protocol) ? url.href : "#";
+  } catch {
+    return "#";
   }
 }
 
-function setStartStatus(message, type = "neutral") {
-  elements.startStatus.textContent = message;
-  elements.startStatus.classList.toggle("error", type === "error");
-  elements.startStatus.classList.toggle("success", type === "success");
+function normalizeText(value) {
+  return String(value ?? "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLocaleLowerCase("es");
 }
 
-function showStartScreen() {
-  elements.startScreen.hidden = false;
-  elements.appShell.hidden = true;
-  window.scrollTo({ top: 0, behavior: "smooth" });
+function formatDate(value, withTime = false) {
+  if (!value) return "Sin fecha";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "Sin fecha";
+  return new Intl.DateTimeFormat("es-ES", withTime ? { day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" } : { day: "2-digit", month: "short", year: "numeric" }).format(date).replace(/\./g, "");
 }
 
-function showDashboard() {
-  elements.startScreen.hidden = true;
-  elements.appShell.hidden = false;
-  setPage("dashboard");
+function formatMonth(value) {
+  if (!value) return "—";
+  const [year, month] = String(value).split("-").map(Number);
+  if (!year || !month) return value;
+  return new Intl.DateTimeFormat("es-ES", { month: "short", year: "2-digit", timeZone: "UTC" }).format(new Date(Date.UTC(year, month - 1, 1))).replace(/\./g, "");
 }
 
-function validateApifyPayload(payload) {
-  if (!Array.isArray(payload)) {
-    throw new Error("El archivo debe contener una lista JSON de publicaciones.");
-  }
-  if (!payload.length) {
-    throw new Error("El archivo JSON no contiene publicaciones.");
-  }
-  const post = payload.find((item) => item && typeof item === "object");
-  if (!post) {
-    throw new Error("No se encontró ningún registro de publicación válido.");
-  }
-  if (typeof post.ownerUsername !== "string" || !post.ownerUsername.trim()) {
-    throw new Error("El campo ownerUsername no tiene el formato esperado.");
-  }
-  const hasPostIdentity = ["id", "shortCode", "timestamp"].some((field) =>
-    Object.hasOwn(post, field),
-  );
-  const hasEngagementFields = [
-    "likesCount",
-    "commentsCount",
-    "latestComments",
-    "mentions",
-    "taggedUsers",
-  ].some((field) => Object.hasOwn(post, field));
-  if (!hasPostIdentity || !hasEngagementFields) {
-    throw new Error(
-      "La estructura no parece corresponder a una descarga de Apify Instagram Scraper.",
-    );
-  }
+function showToast(message, error = false) {
+  const toast = $("toast");
+  clearTimeout(state.toastTimer);
+  toast.textContent = message;
+  toast.classList.toggle("error", error);
+  toast.hidden = false;
+  state.toastTimer = setTimeout(() => { toast.hidden = true; }, error ? 7000 : 3800);
 }
 
-function showToast(message, isError = false) {
-  window.clearTimeout(state.toastTimer);
-  elements.toast.textContent = message;
-  elements.toast.classList.toggle("error", isError);
-  elements.toast.hidden = false;
-  state.toastTimer = window.setTimeout(() => {
-    elements.toast.hidden = true;
-  }, isError ? 6500 : 3600);
-}
-
-function setBusy(isBusy, message = "Actualizando el análisis…") {
-  state.loading = isBusy;
-  elements.networkStage.setAttribute("aria-busy", String(isBusy));
-  elements.networkLoading.hidden = !isBusy;
-  if (isBusy) {
-    elements.networkEmpty.hidden = true;
-    if (state.data) elements.qualityText.textContent = message;
-  }
-}
-
-function setQualityError(message) {
-  elements.qualityBanner.classList.add("is-error");
-  elements.qualityText.textContent = message;
-}
-
-function clearQualityError() {
-  elements.qualityBanner.classList.remove("is-error");
-}
-
-function buildApiUrl() {
-  const main = elements.mainAccount.value.trim().replace(/^@/, "");
-  const scope = elements.scopeSelect.value;
-  const params = new URLSearchParams({ main, scope });
-  return `/api/analysis?${params.toString()}`;
+function setLoading(value, title = "Leyendo los archivos…", text = "Preparando una copia derivada sin tocar el original.") {
+  state.loading = value;
+  $("loadingOverlay").hidden = !value;
+  $("loadingTitle").textContent = title;
+  $("loadingText").textContent = text;
 }
 
 async function parseResponse(response) {
@@ -272,1799 +83,569 @@ async function parseResponse(response) {
   try {
     payload = await response.json();
   } catch {
-    throw new Error(`El servidor respondió con un estado ${response.status}.`);
+    throw new Error(`El servidor respondió con el estado ${response.status}.`);
   }
-  if (!response.ok) {
-    throw new Error(payload.error || `Error HTTP ${response.status}.`);
-  }
+  if (!response.ok) throw new Error(payload.error || `Error HTTP ${response.status}.`);
   return payload;
 }
 
-async function loadAnalysis({ announce = false } = {}) {
-  if (state.loading) return;
-  setBusy(true);
-  try {
-    const response = await fetch(buildApiUrl(), {
-      headers: { Accept: "application/json" },
-      cache: "no-store",
-    });
-    const payload = await parseResponse(response);
-    state.data = payload;
-    state.selectedUsername = null;
-    state.selectedEdgeId = null;
-    state.selectedContextId = null;
-    state.search = "";
-    state.minSharedPosts = 1;
-    state.minContextPosts = 1;
-    elements.accountSearch.value = "";
-    elements.mainAccount.value = payload.main.username;
-    elements.scopeSelect.value = payload.scope;
-    clearQualityError();
-    renderAll();
-    if (announce) showToast(`Análisis actualizado para @${payload.main.username}.`);
-  } catch (error) {
-    setQualityError(error.message);
-    showToast(error.message, true);
-    if (state.data) {
-      elements.mainAccount.value = state.data.main.username;
-      elements.scopeSelect.value = state.data.scope;
-    }
-  } finally {
-    setBusy(false);
-  }
+function setUploadStatus(message, type = "neutral") {
+  const target = $("uploadStatus");
+  target.textContent = message;
+  target.classList.toggle("error", type === "error");
+  target.classList.toggle("success", type === "success");
 }
 
-async function uploadDataset(file) {
-  if (!file) return;
-  if (!file.name.toLocaleLowerCase("es").endsWith(".json")) {
-    const message = "Selecciona un archivo con extensión .json.";
-    setStartStatus(message, "error");
-    showToast(message, true);
-    return;
-  }
-  if (file.size > 50 * 1024 * 1024) {
-    const message = "El archivo supera el límite de 50 MB.";
-    setStartStatus(message, "error");
-    showToast(message, true);
-    return;
-  }
+function showUpload() {
+  $("uploadScreen").hidden = false;
+  $("appShell").hidden = true;
+  window.scrollTo({ top: 0, behavior: "smooth" });
+}
 
-  setStartStatus(`Validando ${file.name}…`);
-  setBusy(true, `Leyendo ${file.name}…`);
-  try {
-    const text = await file.text();
-    let rawPayload;
-    try {
-      rawPayload = JSON.parse(text.replace(/^\uFEFF/, ""));
-    } catch {
-      throw new Error("El archivo no contiene un JSON válido.");
-    }
-    validateApifyPayload(rawPayload);
+function showReport() {
+  $("uploadScreen").hidden = true;
+  $("appShell").hidden = false;
+  window.scrollTo({ top: 0, behavior: "smooth" });
+}
 
-    const params = new URLSearchParams({
-      scope: elements.scopeSelect.value,
-      name: file.name,
-    });
-    const response = await fetch(`/api/analysis?${params.toString()}`, {
-      method: "POST",
-      headers: {
-        Accept: "application/json",
-        "Content-Type": "application/json; charset=utf-8",
-      },
-      body: text,
-    });
-    const payload = await parseResponse(response);
-    state.data = payload;
-    state.serverStatus = {
-      has_data: true,
-      source_name: payload.source_name,
-      main_account: payload.main.username,
-    };
-    state.selectedUsername = null;
-    state.selectedEdgeId = null;
-    state.selectedContextId = null;
-    state.search = "";
-    state.minSharedPosts = 1;
-    state.minContextPosts = 1;
-    elements.accountSearch.value = "";
-    elements.mainAccount.value = payload.main.username;
-    elements.scopeSelect.value = payload.scope;
-    clearQualityError();
-    renderAll();
-    showDashboard();
-    setStartStatus(`Archivo cargado: ${file.name}`, "success");
-    showToast(`Archivo cargado: ${file.name}`);
-  } catch (error) {
-    setStartStatus(error.message, "error");
-    if (!elements.appShell.hidden) {
-      setQualityError(error.message);
-      showToast(error.message, true);
-    }
-  } finally {
-    elements.fileInput.value = "";
-    elements.startFileInput.value = "";
-    setBusy(false);
-  }
+function renderAll() {
+  if (!state.data) return;
+  renderHeader();
+  renderKpis();
+  renderDataInventory();
+  renderPosts();
+  renderAudience();
+  renderCollaborations();
+  renderNetworks();
+  renderEvolution();
+  renderFindings();
+  renderExplanations();
+  $("sourceChip").textContent = state.data.source_name || "JSON cargado";
+  $("sourceChip").title = state.data.source_name || "JSON cargado";
+  $("generatedAt").textContent = `Informe generado el ${formatDate(state.data.generated_at, true)}`;
 }
 
 function renderHeader() {
   const { data } = state;
-  const { main, summary } = data;
-  const displayName = main.full_name || `@${main.username}`;
-  elements.mainName.textContent = displayName;
-  elements.sourceStatus.textContent = data.source_name;
-  elements.sourceStatus.title = data.source_name;
-  elements.egoViewLabel.textContent = `@${main.username} ↔ otros`;
-  elements.heroDescription.textContent =
-    `${formatNumber(summary.selected_posts)} ${SCOPE_LABELS[data.scope].toLocaleLowerCase("es")} ` +
-    `entre ${formatMonthRange(summary.date_start, summary.date_end)}, con ${formatNumber(summary.total_likes)} likes ` +
-    `y ${formatNumber(summary.reported_comments)} comentarios reportados.`;
-
-  elements.qualityText.textContent =
-    `El JSON informa ${formatNumber(summary.reported_comments)} comentarios, pero conserva ` +
-    `${formatNumber(summary.captured_comments)} entradas en latestComments ` +
-    `(${formatPercent(summary.comment_coverage)} de cobertura). Los likes son agregados y no identifican cuentas.`;
-
-  elements.generatedAt.textContent = `Análisis generado el ${formatDate(data.generated_at, true)}`;
-  elements.monthlyRangeBadge.textContent = `${formatNumber(data.monthly_series.items.length)} meses con actividad`;
-  elements.manualSourceName.textContent = data.source_name;
-  elements.manualAccount.textContent = `@${main.username}`;
-  elements.manualPostCount.textContent = formatNumber(summary.selected_posts);
-  elements.manualCoverage.textContent = formatPercent(summary.comment_coverage);
-  elements.mainProfileLink.href = profileUrl(main.username);
-  elements.mainProfileLink.innerHTML = `Abrir @${escapeHtml(main.username)} <span aria-hidden="true">↗</span>`;
+  const { main, profile, scope, data_coverage: coverage } = data;
+  $("accountTitle").textContent = main.full_name ? `${main.full_name} · @${main.username}` : `@${main.username}`;
+  $("heroLead").textContent = `${formatNumber(profile.posts)} publicaciones entre ${formatDate(profile.date_start)} y ${formatDate(profile.date_end)}. ${formatNumber(profile.total_likes)} likes conocidos y ${formatNumber(profile.unique_audience_accounts)} cuentas con interacción identificada.`;
+  $("mainAccount").value = main.username;
+  $("scopeSelect").value = scope;
+  $("accountSuggestions").innerHTML = (data.available_accounts || []).map((item) => `<option value="${escapeHtml(item.username)}">${formatNumber(item.posts)} publicaciones</option>`).join("");
+  $("heroTags").innerHTML = [
+    `<span class="soft-tag">${escapeHtml(scope === "owned" ? "Publicaciones propias" : scope === "involving" ? "Incluye colaboraciones" : "Todos los registros")}</span>`,
+    `<span class="soft-tag ${coverage.likes_identities_available ? "tag-good" : "tag-warn"}">${coverage.likes_identities_available ? "Likes con identidad disponible" : "Likes sin identidad disponible"}</span>`,
+    `<span class="soft-tag">Sin sobrescribir originales</span>`,
+  ].join("");
+  $("coverageText").textContent = coverage.likes_identities_available
+    ? `El archivo permite identificar ${formatNumber(coverage.liker_records)} registros de likes y ${formatNumber(coverage.comment_records)} comentarios. Aun así, la cobertura puede ser parcial.`
+    : `Los ${formatNumber(profile.total_likes)} likes son una cifra agregada: el archivo no identifica qué cuentas los dieron. La audiencia de este informe usa ${formatNumber(coverage.comment_records)} comentarios identificados.`;
+  $("coverageBanner").classList.toggle("has-warning", !coverage.likes_identities_available);
 }
 
 function renderKpis() {
-  const { summary } = state.data;
-  const secondarySummary = state.data.secondary_network.summary;
-  const contextSummary = state.data.context_network.summary;
-  let relationshipCard;
-  if (state.networkView === "co") {
-    relationshipCard = {
-      label: "Cuentas co-comentadoras",
-      value: secondarySummary.connected_accounts,
-      note: `${formatNumber(secondarySummary.edges)} vínculos inferidos`,
-      icon: "⌁",
-    };
-  } else if (state.networkView === "context") {
-    relationshipCard = {
-      label: "Contextos únicos",
-      value: contextSummary.relationships,
-      note: `${formatNumber(contextSummary.posts_with_context)} publicaciones con contexto`,
-      icon: "◇",
-    };
-  } else {
-    relationshipCard = {
-      label: "Cuentas conectadas",
-      value: summary.connected_accounts,
-      note: "en al menos una fuente de relación",
-      icon: "◎",
-    };
-  }
+  const { profile, collaborations, recurrence, audience } = state.data;
   const cards = [
-    {
-      label: "Publicaciones",
-      value: summary.selected_posts,
-      note:
-        summary.other_author_posts > 0 && state.data.scope !== "all"
-          ? `${formatNumber(summary.other_author_posts)} de otras autoras en el archivo`
-          : "en el alcance seleccionado",
-      icon: "▦",
-      accent: true,
-    },
-    {
-      label: "Likes totales",
-      value: summary.total_likes,
-      note: "agregados en las publicaciones",
-      icon: "♡",
-    },
-    {
-      label: "Comentarios",
-      value: summary.reported_comments,
-      note: "total informado por Instagram",
-      icon: "◌",
-    },
-    {
-      label: "Muestra observada",
-      value: summary.captured_comments,
-      note: `${formatPercent(summary.comment_coverage)} del total reportado`,
-      icon: "⌁",
-    },
-    relationshipCard,
+    ["Publicaciones", profile.posts, "en el alcance seleccionado", "▦", "coral"],
+    ["Likes registrados", profile.total_likes, `${formatNumber(profile.likes_known)} publicaciones con dato; ${formatNumber(profile.likes_missing)} sin dato`, "♡", "blue"],
+    ["Cuentas con interacción", profile.unique_audience_accounts, "sólo identidades disponibles", "◎", "green"],
+    ["Colaboraciones", collaborations.total, `${formatNumber(collaborations.unique_collaborators)} cuentas diferentes`, "↔", "purple"],
+    ["Periodo", profile.date_start ? formatDate(profile.date_start) : "Sin fecha", profile.date_end ? `hasta ${formatDate(profile.date_end)}` : "sin fecha disponible", "◷", "amber"],
   ];
-
-  elements.kpiGrid.innerHTML = cards
-    .map(
-      (card) => `
-        <article class="kpi-card${card.accent ? " kpi-accent" : ""}">
-          <div class="kpi-head">
-            <span class="kpi-label">${escapeHtml(card.label)}</span>
-            <span class="kpi-icon" aria-hidden="true">${escapeHtml(card.icon)}</span>
-          </div>
-          <strong class="kpi-value">${formatNumber(card.value)}</strong>
-          <small class="kpi-note" title="${escapeHtml(card.note)}">${escapeHtml(card.note)}</small>
-        </article>
-      `,
-    )
-    .join("");
+  $("kpiGrid").innerHTML = cards.map(([label, value, note, icon, color]) => `<article class="kpi-card accent-${color}"><div class="kpi-top"><span>${escapeHtml(label)}</span><i aria-hidden="true">${escapeHtml(icon)}</i></div><strong>${escapeHtml(value)}</strong><small>${escapeHtml(note)}</small></article>`).join("");
+  $("audienceSummary").innerHTML = [
+    ["Cuentas identificadas", formatNumber(audience.length), "Cuentas con likes o comentarios atribuibles"],
+    ["Interacciones observadas", formatNumber(state.data.concentration.total_interactions), "Eventos identificados, no likes agregados"],
+    ["Persistencia", formatNumber(recurrence.categories.find((item) => item.label === "Persistente")?.accounts || 0), "Cuentas con una ventana temporal amplia"],
+    ["Top 10", state.data.concentration.top_10?.share == null ? "—" : formatPercent(state.data.concentration.top_10.share), "Parte de las interacciones identificadas"],
+    ["Seguidores", formatNumber(state.data.followers?.unique_accounts || 0), state.data.followers?.available ? "Cuentas en una lista de seguidores" : "No hay lista de seguidores"],
+    ["Seguidores que interactúan", formatNumber(state.data.followers?.interacting_accounts || 0), "Sólo si el registro lo indica"],
+  ].map(([label, value, note]) => `<div class="mini-stat"><span>${escapeHtml(label)}</span><strong>${escapeHtml(value)}</strong><small>${escapeHtml(note)}</small></div>`).join("");
 }
 
-function renderScopeOptions() {
-  const { data } = state;
-  const suffixes = {
-    owned: "propias",
-    involving: "con participación",
-    all: "en archivo",
-  };
-  for (const option of elements.scopeSelect.options) {
-    const count = data.scopes[option.value];
-    option.textContent = `${option.textContent.replace(/\s+\(\d+\)$/, "")} · ${formatNumber(count)} ${suffixes[option.value]}`;
-    option.disabled = count === 0;
-  }
-  elements.scopeSelect.value = data.scope;
-}
-
-function scoreFor(account) {
-  if (state.metric !== "combined") {
-    return Number(account[state.metric] || 0);
-  }
-  return Object.entries(state.weights).reduce(
-    (total, [source, weight]) => total + Number(account[source] || 0) * Number(weight),
-    0,
-  );
-}
-
-function sourceFor(account) {
-  if (state.metric !== "combined") return state.metric;
-  const contributions = Object.entries(state.weights)
-    .map(([source, weight]) => ({ source, value: Number(account[source] || 0) * weight }))
-    .sort((a, b) => b.value - a.value);
-  return contributions[0]?.value > 0 ? contributions[0].source : "comments";
-}
-
-function rankedRelationships() {
-  return [...state.data.relationships]
-    .map((account) => ({ ...account, score: scoreFor(account) }))
-    .filter((account) => account.score > 0)
-    .sort(
-      (a, b) =>
-        b.score - a.score ||
-        b.combined_score - a.combined_score ||
-        a.username.localeCompare(b.username, "es"),
-    );
-}
-
-function createSvgElement(tag, attributes = {}) {
-  const element = document.createElementNS(SVG_NS, tag);
-  for (const [name, value] of Object.entries(attributes)) {
-    element.setAttribute(name, String(value));
-  }
-  return element;
-}
-
-function showNetworkTooltip(event, account) {
-  const tooltip = elements.networkTooltip;
-  const color = SOURCE_META[sourceFor(account)].color;
-  const firstComment = account.comment_excerpts?.[0]?.text;
-  tooltip.innerHTML = `
-    <div class="tooltip-head">
-      <span class="tooltip-avatar" style="background:${color}">${escapeHtml(initials(account))}</span>
-      <span class="tooltip-title">
-        <strong>${escapeHtml(account.full_name || account.username)}</strong>
-        <span>@${escapeHtml(account.username)}</span>
-      </span>
-    </div>
-    <div class="tooltip-score">
-      <span>${escapeHtml(METRIC_LABELS[state.metric])}</span>
-      <b>${formatNumber(scoreFor(account))}</b>
-    </div>
-    ${firstComment ? `<p class="comment-excerpt">“${escapeHtml(firstComment.slice(0, 115))}”</p>` : ""}
-  `;
-  tooltip.hidden = false;
-  placeNetworkTooltip(event, tooltip);
-}
-
-function hideNetworkTooltip() {
-  elements.networkTooltip.hidden = true;
-}
-
-function renderEgoNetwork() {
-  if (!state.data) return;
-
-  const relationships = rankedRelationships().slice(0, state.topLimit);
-  const positions = layoutEgoNetwork(relationships.length);
-  const edgeLayer = elements.networkEdges;
-  const nodeLayer = elements.networkNodes;
-  edgeLayer.replaceChildren();
-  nodeLayer.replaceChildren();
-
-  const centerX = 500;
-  const centerY = 330;
-  const maxScore = relationships[0]?.score || 1;
-
-  relationships.forEach((account, index) => {
-    const position = positions[index];
-    const intensity = Math.sqrt(account.score / maxScore);
-    const edge = createSvgElement("line", {
-      x1: centerX,
-      y1: centerY,
-      x2: position.x,
-      y2: position.y,
-      class: "network-edge",
-      stroke: SOURCE_META[sourceFor(account)].color,
-      "stroke-opacity": 0.12 + intensity * 0.26,
-      "stroke-width": 0.8 + intensity * 5.2,
-    });
-    edge.dataset.username = account.username;
-    edgeLayer.appendChild(edge);
+function renderDataInventory() {
+  const inventory = state.data.data_inventory || { files: [], cross_file_links: [] };
+  const coverage = state.data.data_coverage;
+  $("dataSummary").innerHTML = `
+    <div class="summary-intro"><span class="summary-icon">⌘</span><div><h3>Lectura de la fuente</h3><p>La aplicación exploró la estructura antes de calcular. Los campos que no aparecen no se estiman.</p></div></div>
+    <div class="coverage-pills"><span><b>${formatNumber(inventory.post_count || 0)}</b> registros de publicación</span><span><b>${formatNumber(coverage.comment_records)}</b> comentarios identificados</span><span><b>${formatNumber(coverage.liker_records)}</b> likes identificados</span><span><b>${formatNumber(coverage.follower_records)}</b> registros de seguidores</span></div>`;
+  $("inventoryGrid").innerHTML = (inventory.files || []).map((file) => {
+    const fields = file.available_fields || [];
+    const details = new Map((file.field_details || []).map((field) => [field.path, field.description || "Campo disponible en la fuente"]));
+    const shown = fields.slice(0, 18);
+    return `<article class="inventory-card panel"><div class="inventory-card-head"><div><span class="file-icon">${file.post_records ? "▦" : "◇"}</span><div><h3>${escapeHtml(file.name)}</h3><p>${escapeHtml(file.inferred_role)}</p></div></div><span class="file-count">${formatNumber(file.post_records)} publicaciones</span></div><p class="inventory-note">${formatNumber(file.field_count)} campos detectados. ${file.like_events ? `${formatNumber(file.like_events)} eventos de like. ` : ""}${file.comment_events ? `${formatNumber(file.comment_events)} comentarios. ` : ""}${file.follower_records ? `${formatNumber(file.follower_records)} seguidores.` : ""}</p><div class="field-list">${shown.map((field) => { const path = typeof field === "string" ? field : field.path; return `<span title="${escapeHtml(details.get(path) || "Campo disponible en la fuente")}">${escapeHtml(path.split(".").slice(-1)[0])}</span>`; }).join("")}${fields.length > shown.length ? `<span class="field-more">+${fields.length - shown.length}</span>` : ""}</div></article>`;
+  }).join("");
+  if (!(inventory.files || []).length) $("inventoryGrid").innerHTML = '<div class="empty-state panel">No se detectaron archivos para describir.</div>';
+  const dictionary = new Map();
+  (inventory.files || []).forEach((file) => {
+    const details = new Map((file.field_details || []).map((field) => [field.path, field.description || "Campo disponible en la fuente"]));
+    (file.available_fields || []).forEach((field) => { const path = typeof field === "string" ? field : field.path; dictionary.set(path, details.get(path) || (typeof field === "string" ? "Campo disponible en la fuente" : field.description || "Campo disponible en la fuente")); });
   });
-
-  const centerHalo = createSvgElement("circle", {
-    cx: centerX,
-    cy: centerY,
-    r: 53,
-    fill: "none",
-    stroke: "#ef5f57",
-    "stroke-width": 1.2,
-    "stroke-dasharray": "4 7",
-    opacity: 0.4,
-  });
-  const centerGroup = createSvgElement("g", {
-    class: "network-node center-node",
-    tabindex: "0",
-    role: "img",
-    "aria-label": `Cuenta principal @${state.data.main.username}`,
-  });
-  centerGroup.appendChild(centerHalo);
-  centerGroup.appendChild(
-    createSvgElement("circle", {
-      cx: centerX,
-      cy: centerY,
-      r: 35,
-      fill: "#172033",
-      class: "node-core",
-    }),
-  );
-  centerGroup.appendChild(
-    createSvgElement("text", {
-      x: centerX,
-      y: centerY + 5,
-      "text-anchor": "middle",
-      class: "node-label center-label",
-    }),
-  );
-  centerGroup.querySelector("text").textContent = "@" + state.data.main.username.slice(0, 16);
-  centerGroup.addEventListener("click", () => selectAccount(null));
-  centerGroup.addEventListener("keydown", (event) => {
-    if (event.key === "Enter" || event.key === " ") selectAccount(null);
-  });
-  nodeLayer.appendChild(centerGroup);
-
-  relationships.forEach((account, index) => {
-    const position = positions[index];
-    const intensity = Math.sqrt(account.score / maxScore);
-    const radius = 7 + intensity * 13;
-    const color = SOURCE_META[sourceFor(account)].color;
-    const selected = state.selectedUsername === account.username;
-
-    const group = createSvgElement("g", {
-      class: `network-node${selected ? " selected" : ""}`,
-      "data-username": account.username,
-      transform: `translate(${position.x} ${position.y})`,
-      tabindex: "0",
-      role: "button",
-      "aria-label": `${account.full_name || account.username}, puntaje ${account.score}`,
-    });
-
-    const halo = createSvgElement("circle", {
-      r: radius + 5,
-      class: "node-halo",
-      stroke: color,
-    });
-    const core = createSvgElement("circle", {
-      r: radius,
-      fill: color,
-      class: "node-core",
-    });
-    group.append(halo, core);
-
-    const title = createSvgElement("title");
-    title.textContent = `@${account.username} · puntaje ${account.score}`;
-    group.appendChild(title);
-
-    group.addEventListener("pointerenter", (event) => showNetworkTooltip(event, account));
-    group.addEventListener("pointermove", (event) => showNetworkTooltip(event, account));
-    group.addEventListener("pointerleave", hideNetworkTooltip);
-    group.addEventListener("click", (event) => {
-      event.stopPropagation();
-      selectAccount(selected ? null : account.username);
-    });
-    group.addEventListener("keydown", (event) => {
-      if (event.key === "Enter" || event.key === " ") {
-        event.preventDefault();
-        selectAccount(selected ? null : account.username);
-      }
-    });
-    nodeLayer.appendChild(group);
-
-    if (index < 12) {
-      const isLeft = position.x < centerX;
-      const isRight = position.x > centerX;
-      const labelX = isLeft ? -radius - 7 : isRight ? radius + 7 : 0;
-      const anchor = isLeft ? "end" : isRight ? "start" : "middle";
-      const label = createSvgElement("text", {
-        x: labelX,
-        y: 4,
-        "text-anchor": anchor,
-        class: "node-label",
-      });
-      label.textContent = `@${account.username.slice(0, 22)}`;
-      group.appendChild(label);
-    }
-  });
-
-  elements.networkEmpty.hidden = relationships.length !== 0;
-  elements.networkSvg.hidden = relationships.length === 0;
-  elements.networkSummary.textContent = relationships.length
-    ? `${formatNumber(relationships.length)} de ${formatNumber(state.data.summary.connected_accounts)} cuentas · ponderación ${METRIC_LABELS[state.metric]}`
-    : "No hay cuentas para el criterio seleccionado.";
-
-  applyEgoSelection();
-}
-
-function applyEgoSelection() {
-  const selected = state.selectedUsername;
-  for (const edge of elements.networkEdges.children) {
-    const isSelected = edge.dataset.username === selected;
-    edge.classList.toggle("focused", Boolean(selected && isSelected));
-    edge.classList.toggle("muted", Boolean(selected && !isSelected));
-  }
-  for (const node of elements.networkNodes.querySelectorAll(".network-node:not(.center-node)")) {
-    const isSelected = node.dataset.username === selected;
-    node.classList.toggle("muted", Boolean(selected && !isSelected));
-  }
-}
-
-function secondaryEdgeColor(weight) {
-  if (weight >= 3) return "#ef5f57";
-  if (weight === 2) return "#e89a24";
-  return "#9eb2d1";
-}
-
-function placeNetworkTooltip(event, tooltip) {
-  const stageRect = elements.networkStage.getBoundingClientRect();
-  const width = 230;
-  const left = Math.min(
-    Math.max(event.clientX - stageRect.left + 14, 8),
-    Math.max(stageRect.width - width - 8, 8),
-  );
-  const top = Math.min(
-    Math.max(event.clientY - stageRect.top - 20, 8),
-    Math.max(stageRect.height - tooltip.offsetHeight - 8, 8),
-  );
-  tooltip.style.left = `${left}px`;
-  tooltip.style.top = `${top}px`;
-}
-
-function showCoAccountTooltip(event, account) {
-  const tooltip = elements.networkTooltip;
-  const incident = state.data.secondary_network.edges.filter(
-    (edge) => edge.source === account.username || edge.target === account.username,
-  );
-  const repeated = incident.filter((edge) => edge.weight >= 2);
-  tooltip.innerHTML = `
-    <div class="tooltip-head">
-      <span class="tooltip-avatar" style="background:#3b6ef5">${escapeHtml(initials(account))}</span>
-      <span class="tooltip-title">
-        <strong>${escapeHtml(account.full_name || account.username)}</strong>
-        <span>@${escapeHtml(account.username)}</span>
-      </span>
-    </div>
-    <div class="tooltip-score">
-      <span>co-comentadores</span><b>${formatNumber(account.secondary_connections)}</b>
-    </div>
-    <div class="tooltip-score">
-      <span>vínculos repetidos (2+)</span><b>${formatNumber(account.repeated_connections)}</b>
-    </div>
-    ${repeated.length ? `<p class="comment-excerpt">${formatNumber(repeated.length)} coincidencia${repeated.length === 1 ? "" : "s"} en más de una publicación</p>` : ""}
-  `;
-  tooltip.hidden = false;
-  placeNetworkTooltip(event, tooltip);
-}
-
-function showCoEdgeTooltip(event, edge) {
-  const tooltip = elements.networkTooltip;
-  const shared = edge.post_codes.join(", ");
-  tooltip.innerHTML = `
-    <div class="tooltip-head">
-      <span class="tooltip-avatar" style="background:${secondaryEdgeColor(edge.weight)}">↔</span>
-      <span class="tooltip-title">
-        <strong>@${escapeHtml(edge.source)} ↔ @${escapeHtml(edge.target)}</strong>
-        <span>${formatNumber(edge.weight)} ${edge.weight === 1 ? "publicación compartida" : "publicaciones compartidas"}</span>
-      </span>
-    </div>
-    <p class="comment-excerpt">${escapeHtml(shared)}</p>
-  `;
-  tooltip.hidden = false;
-  placeNetworkTooltip(event, tooltip);
-}
-
-function renderSecondaryNetwork() {
-  if (!state.data?.secondary_network) return;
-
-  const allEdges = state.data.secondary_network.edges.filter(
-    (edge) => edge.weight >= state.minSharedPosts,
-  );
-  const visibleEdges = allEdges.slice(0, state.topLimit);
-  const endpointNames = new Set(
-    visibleEdges.flatMap((edge) => [edge.source, edge.target]),
-  );
-  const nodeByUsername = new Map(
-    state.data.secondary_network.nodes.map((node) => [node.username, node]),
-  );
-  const visibleDegree = new Map();
-  for (const edge of visibleEdges) {
-    visibleDegree.set(edge.source, (visibleDegree.get(edge.source) || 0) + 1);
-    visibleDegree.set(edge.target, (visibleDegree.get(edge.target) || 0) + 1);
-  }
-  const positions = layoutSecondaryNetwork(visibleEdges);
-  const edgeLayer = elements.networkEdges;
-  const nodeLayer = elements.networkNodes;
-  edgeLayer.replaceChildren();
-  nodeLayer.replaceChildren();
-
-  visibleEdges.forEach((edge) => {
-    const source = positions.get(edge.source);
-    const target = positions.get(edge.target);
-    if (!source || !target) return;
-    const line = createSvgElement("line", {
-      x1: source.x,
-      y1: source.y,
-      x2: target.x,
-      y2: target.y,
-      class: "network-edge co-edge",
-      stroke: secondaryEdgeColor(edge.weight),
-      "stroke-opacity": edge.weight === 1 ? 0.2 : 0.48,
-      "stroke-width": edge.weight === 1 ? 0.8 : edge.weight === 2 ? 1.8 : 3,
-      tabindex: "0",
-      role: "button",
-      "aria-label": `@${edge.source} y @${edge.target}: ${edge.weight} publicaciones compartidas`,
-    });
-    line.dataset.edgeId = edge.id;
-    line.dataset.source = edge.source;
-    line.dataset.target = edge.target;
-    line.addEventListener("pointerenter", (event) => showCoEdgeTooltip(event, edge));
-    line.addEventListener("pointermove", (event) => showCoEdgeTooltip(event, edge));
-    line.addEventListener("pointerleave", hideNetworkTooltip);
-    line.addEventListener("click", (event) => {
-      event.stopPropagation();
-      selectEdge(state.selectedEdgeId === edge.id ? null : edge.id);
-    });
-    line.addEventListener("keydown", (event) => {
-      if (event.key === "Enter" || event.key === " ") {
-        event.preventDefault();
-        selectEdge(state.selectedEdgeId === edge.id ? null : edge.id);
-      }
-    });
-    edgeLayer.appendChild(line);
-  });
-
-  const orderedNodes = [...endpointNames]
-    .map((username) => nodeByUsername.get(username))
-    .filter(Boolean)
-    .sort(
-      (a, b) =>
-        (visibleDegree.get(b.username) || 0) - (visibleDegree.get(a.username) || 0) ||
-        b.repeated_connections - a.repeated_connections ||
-        a.username.localeCompare(b.username, "es"),
-    );
-  const maxConnections = Math.max(
-    ...orderedNodes.map((account) => visibleDegree.get(account.username) || 0),
-    1,
-  );
-
-  orderedNodes.forEach((account, index) => {
-    const position = positions.get(account.username);
-    if (!position) return;
-    const visibleConnections = visibleDegree.get(account.username) || 1;
-    const intensity = Math.sqrt(visibleConnections / maxConnections);
-    const radius = 4.5 + intensity * 8;
-    const color = account.repeated_connections > 0 ? "#3b6ef5" : "#7185a8";
-    const selected = state.selectedUsername === account.username;
-    const group = createSvgElement("g", {
-      class: `network-node${selected ? " selected" : ""}`,
-      "data-username": account.username,
-      transform: `translate(${position.x} ${position.y})`,
-      tabindex: "0",
-      role: "button",
-      "aria-label": `${account.full_name || account.username}, ${visibleConnections} co-comentadores visibles`,
-    });
-    group.appendChild(
-      createSvgElement("circle", {
-        r: radius + 4,
-        fill: "transparent",
-        stroke: color,
-        class: "node-halo",
-      }),
-    );
-    group.appendChild(
-      createSvgElement("circle", {
-        r: radius,
-        fill: color,
-        class: "node-core",
-      }),
-    );
-    const title = createSvgElement("title");
-    title.textContent = `@${account.username} · ${visibleConnections} vínculos visibles`;
-    group.appendChild(title);
-    group.addEventListener("pointerenter", (event) => showCoAccountTooltip(event, account));
-    group.addEventListener("pointermove", (event) => showCoAccountTooltip(event, account));
-    group.addEventListener("pointerleave", hideNetworkTooltip);
-    group.addEventListener("click", (event) => {
-      event.stopPropagation();
-      selectAccount(selected ? null : account.username);
-    });
-    group.addEventListener("keydown", (event) => {
-      if (event.key === "Enter" || event.key === " ") {
-        event.preventDefault();
-        selectAccount(selected ? null : account.username);
-      }
-    });
-    nodeLayer.appendChild(group);
-
-    if (index < 10) {
-      const isLeft = position.x < 500;
-      const label = createSvgElement("text", {
-        x: isLeft ? -radius - 6 : radius + 6,
-        y: 4,
-        "text-anchor": isLeft ? "end" : "start",
-        class: "node-label",
-      });
-      label.textContent = `@${account.username.slice(0, 20)}`;
-      group.appendChild(label);
-    }
-  });
-
-  elements.centerGlowCircle.hidden = true;
-  elements.networkEmpty.hidden = visibleEdges.length !== 0;
-  elements.networkSvg.hidden = visibleEdges.length === 0;
-  elements.networkEmptyTitle.textContent = "No hay co-comentarios con ese peso";
-  elements.networkEmptyText.textContent =
-    "Baja las coincidencias mínimas o cambia el alcance de publicaciones.";
-  elements.networkSummary.textContent = visibleEdges.length
-    ? `${formatNumber(visibleEdges.length)} de ${formatNumber(allEdges.length)} vínculos · ${formatNumber(endpointNames.size)} cuentas visibles`
-    : "No hay vínculos otros–otros para el criterio seleccionado.";
-  applySecondarySelection();
-}
-
-function applySecondarySelection() {
-  const selectedEdge = state.data.secondary_network.edges.find(
-    (edge) => edge.id === state.selectedEdgeId,
-  );
-  const selectedAccount = state.selectedUsername;
-  for (const line of elements.networkEdges.children) {
-    const isEdgeMatch = selectedEdge && line.dataset.edgeId === selectedEdge.id;
-    const isAccountMatch =
-      selectedAccount &&
-      (line.dataset.source === selectedAccount || line.dataset.target === selectedAccount);
-    const match = Boolean(isEdgeMatch || isAccountMatch);
-    line.classList.toggle("focused", match);
-    line.classList.toggle("muted", Boolean((selectedEdge || selectedAccount) && !match));
-  }
-  for (const node of elements.networkNodes.querySelectorAll(".network-node")) {
-    const isSelected = selectedEdge
-      ? node.dataset.username === selectedEdge.source || node.dataset.username === selectedEdge.target
-      : node.dataset.username === selectedAccount;
-    node.classList.toggle("selected", Boolean(isSelected));
-    node.classList.toggle("muted", Boolean((selectedEdge || selectedAccount) && !isSelected));
-  }
-}
-
-function contextColor(type) {
-  return type === "location" ? "#0f9f91" : "#7c5ce0";
-}
-
-function contextDisplayName(item) {
-  if (item.type === "music" && item.artist_name) {
-    return `${item.artist_name} — ${item.name}`;
-  }
-  return item.name;
-}
-
-function showContextTooltip(event, item) {
-  const tooltip = elements.networkTooltip;
-  const typeLabel = item.type === "location" ? "Location Name" : "Music Info";
-  tooltip.innerHTML = `
-    <div class="tooltip-head">
-      <span class="tooltip-avatar" style="background:${contextColor(item.type)}">${item.type === "location" ? "◇" : "♫"}</span>
-      <span class="tooltip-title">
-        <strong>${escapeHtml(contextDisplayName(item))}</strong>
-        <span>${typeLabel}</span>
-      </span>
-    </div>
-    <div class="tooltip-score">
-      <span>publicaciones</span><b>${formatNumber(item.weight)}</b>
-    </div>
-    ${item.post_codes.length ? `<p class="comment-excerpt">${item.post_codes.map((code) => escapeHtml(code)).join(" · ")}</p>` : ""}
-  `;
-  tooltip.hidden = false;
-  placeNetworkTooltip(event, tooltip);
-}
-
-function renderContextNetwork() {
-  if (!state.data?.context_network) return;
-  const allItems = state.data.context_network.relationships
-    .filter((item) => item.weight >= state.minContextPosts)
-    .sort((a, b) => b.weight - a.weight || a.name.localeCompare(b.name, "es"));
-  const visibleItems = allItems.slice(0, state.topLimit);
-  const positions = layoutContextNetwork(visibleItems);
-  const maxWeight = visibleItems[0]?.weight || 1;
-  const edgeLayer = elements.networkEdges;
-  const nodeLayer = elements.networkNodes;
-  edgeLayer.replaceChildren();
-  nodeLayer.replaceChildren();
-
-  visibleItems.forEach((item) => {
-    const position = positions.get(item.id);
-    if (!position) return;
-    const intensity = Math.sqrt(item.weight / maxWeight);
-    const edge = createSvgElement("line", {
-      x1: 500,
-      y1: 330,
-      x2: position.x,
-      y2: position.y,
-      class: "network-edge context-edge",
-      stroke: contextColor(item.type),
-      "stroke-opacity": 0.16 + intensity * 0.35,
-      "stroke-width": 0.9 + intensity * 5,
-    });
-    edge.dataset.contextId = item.id;
-    edge.addEventListener("pointerenter", (event) => showContextTooltip(event, item));
-    edge.addEventListener("pointermove", (event) => showContextTooltip(event, item));
-    edge.addEventListener("pointerleave", hideNetworkTooltip);
-    edge.addEventListener("click", (event) => {
-      event.stopPropagation();
-      selectContext(state.selectedContextId === item.id ? null : item.id);
-    });
-    edgeLayer.appendChild(edge);
-  });
-
-  const centerGroup = createSvgElement("g", {
-    class: "network-node center-node",
-    tabindex: "0",
-    role: "img",
-    "aria-label": `Cuenta principal @${state.data.main.username}`,
-  });
-  centerGroup.appendChild(
-    createSvgElement("circle", {
-      cx: 500,
-      cy: 330,
-      r: 35,
-      fill: "#172033",
-      class: "node-core",
-    }),
-  );
-  const centerLabel = createSvgElement("text", {
-    x: 500,
-    y: 335,
-    "text-anchor": "middle",
-    class: "node-label center-label",
-  });
-  centerLabel.textContent = `@${state.data.main.username.slice(0, 16)}`;
-  centerGroup.appendChild(centerLabel);
-  centerGroup.addEventListener("click", () => selectContext(null));
-  nodeLayer.appendChild(centerGroup);
-
-  visibleItems.forEach((item) => {
-    const position = positions.get(item.id);
-    if (!position) return;
-    const intensity = Math.sqrt(item.weight / maxWeight);
-    const radius = 7 + intensity * 12;
-    const color = contextColor(item.type);
-    const selected = state.selectedContextId === item.id;
-    const group = createSvgElement("g", {
-      class: `network-node${selected ? " selected" : ""}`,
-      "data-context-id": item.id,
-      transform: `translate(${position.x} ${position.y})`,
-      tabindex: "0",
-      role: "button",
-      "aria-label": `${contextDisplayName(item)}, ${item.weight} publicaciones`,
-    });
-    group.append(
-      createSvgElement("circle", {
-        r: radius + 5,
-        class: "node-halo",
-        stroke: color,
-      }),
-      createSvgElement("circle", {
-        r: radius,
-        fill: color,
-        class: "node-core",
-      }),
-    );
-    group.addEventListener("pointerenter", (event) => showContextTooltip(event, item));
-    group.addEventListener("pointermove", (event) => showContextTooltip(event, item));
-    group.addEventListener("pointerleave", hideNetworkTooltip);
-    group.addEventListener("click", (event) => {
-      event.stopPropagation();
-      selectContext(selected ? null : item.id);
-    });
-    group.addEventListener("keydown", (event) => {
-      if (event.key === "Enter" || event.key === " ") {
-        event.preventDefault();
-        selectContext(selected ? null : item.id);
-      }
-    });
-    nodeLayer.appendChild(group);
-    const label = createSvgElement("text", {
-      x: position.x < 500 ? -radius - 7 : radius + 7,
-      y: 4,
-      "text-anchor": position.x < 500 ? "end" : "start",
-      class: "node-label",
-    });
-    label.textContent = contextDisplayName(item).slice(0, 30);
-    group.appendChild(label);
-  });
-
-  elements.centerGlowCircle.hidden = false;
-  elements.networkEmpty.hidden = visibleItems.length !== 0;
-  elements.networkSvg.hidden = visibleItems.length === 0;
-  elements.networkEmptyTitle.textContent = "No hay lugares ni música para este filtro";
-  elements.networkEmptyText.textContent =
-    "Baja las repeticiones mínimas o cambia el alcance de las publicaciones.";
-  elements.networkSummary.textContent = visibleItems.length
-    ? `${formatNumber(visibleItems.length)} de ${formatNumber(allItems.length)} contextos · ${formatNumber(state.data.context_network.summary.posts_with_context)} publicaciones cubiertas`
-    : "No hay contextos para el criterio seleccionado.";
-  applyContextSelection();
-}
-
-function applyContextSelection() {
-  const selected = state.selectedContextId;
-  for (const edge of elements.networkEdges.children) {
-    const match = edge.dataset.contextId === selected;
-    edge.classList.toggle("focused", Boolean(selected && match));
-    edge.classList.toggle("muted", Boolean(selected && !match));
-  }
-  for (const node of elements.networkNodes.querySelectorAll(".network-node[data-context-id]")) {
-    const match = node.dataset.contextId === selected;
-    node.classList.toggle("selected", match);
-    node.classList.toggle("muted", Boolean(selected && !match));
-  }
-}
-
-function renderNetwork() {
-  if (state.networkView === "co") {
-    renderSecondaryNetwork();
-  } else if (state.networkView === "context") {
-    renderContextNetwork();
-  } else {
-    elements.centerGlowCircle.hidden = false;
-    elements.networkEmptyTitle.textContent = "No hay vínculos con el criterio elegido";
-    elements.networkEmptyText.textContent =
-      "Cambia la fuente de relación o aumenta alguno de sus pesos.";
-    renderEgoNetwork();
-  }
-}
-
-function selectContext(contextId) {
-  state.selectedContextId = contextId;
-  state.selectedEdgeId = null;
-  state.selectedUsername = null;
-  renderNetwork();
-  renderInspector();
-  renderTable();
-}
-
-function selectEdge(edgeId) {
-  state.selectedEdgeId = edgeId;
-  state.selectedUsername = null;
-  state.selectedContextId = null;
-  renderNetwork();
-  renderInspector();
-  renderTable();
-}
-
-function selectAccount(username) {
-  state.selectedUsername = username;
-  state.selectedEdgeId = null;
-  state.selectedContextId = null;
-  renderNetwork();
-  renderInspector();
-  renderTable();
-}
-
-function renderCoEdgeInspector(edge) {
-  const nodeByUsername = new Map(
-    state.data.secondary_network.nodes.map((node) => [node.username, node]),
-  );
-  const source = nodeByUsername.get(edge.source);
-  const target = nodeByUsername.get(edge.target);
-  elements.accountInspector.innerHTML = `
-    <p class="section-kicker">Inspector de vínculo</p>
-    <div class="inspector-heading">
-      <div class="avatar" style="background:${secondaryEdgeColor(edge.weight)}">↔</div>
-      <div>
-        <h3>${formatNumber(edge.weight)} ${edge.weight === 1 ? "publicación compartida" : "publicaciones compartidas"}</h3>
-        <p>Relación inferida, no interacción directa demostrada.</p>
-      </div>
-    </div>
-    <div class="pair-accounts inspector-pair">
-      <span class="pair-account"><a href="${profileUrl(edge.source)}" target="_blank" rel="noopener noreferrer">@${escapeHtml(edge.source)}</a><span>${escapeHtml(source?.full_name || "Cuenta A")}</span></span>
-      <span class="pair-arrow">↔</span>
-      <span class="pair-account"><a href="${profileUrl(edge.target)}" target="_blank" rel="noopener noreferrer">@${escapeHtml(edge.target)}</a><span>${escapeHtml(target?.full_name || "Cuenta B")}</span></span>
-    </div>
-    <p class="comment-excerpt">${edge.post_codes.map((code) => escapeHtml(code)).join(" · ")}</p>
-  `;
-  elements.mainProfileLink.href = profileUrl(edge.source);
-  elements.mainProfileLink.innerHTML = `Abrir @${escapeHtml(edge.source)} <span aria-hidden="true">↗</span>`;
-}
-
-function renderContextInspector(item) {
-  const typeLabel = item.type === "location" ? "Location Name" : "Music Info";
-  const color = contextColor(item.type);
-  elements.accountInspector.innerHTML = `
-    <p class="section-kicker">Inspector de contexto</p>
-    <div class="inspector-heading">
-      <div class="avatar" style="background:${color}">${item.type === "location" ? "◇" : "♫"}</div>
-      <div>
-        <h3>${escapeHtml(contextDisplayName(item))}</h3>
-        <p>${typeLabel} · ${formatNumber(item.weight)} ${item.weight === 1 ? "publicación" : "publicaciones"}</p>
-      </div>
-    </div>
-    <div class="evidence-list">
-      <div class="evidence-row"><span>Tipo de fuente</span><b>${escapeHtml(typeLabel)}</b><div class="evidence-track"><div class="evidence-fill" style="width:100%;background:${color}"></div></div></div>
-      <div class="evidence-row"><span>Publicaciones</span><b>${formatNumber(item.weight)}</b><div class="evidence-track"><div class="evidence-fill" style="width:100%;background:${color}"></div></div></div>
-    </div>
-    <p class="comment-excerpt">${item.post_codes.map((code) => escapeHtml(code)).join(" · ")}</p>
-  `;
-  elements.mainProfileLink.href = profileUrl(state.data.main.username);
-  elements.mainProfileLink.innerHTML = `Abrir @${escapeHtml(state.data.main.username)} <span aria-hidden="true">↗</span>`;
-}
-
-function renderInspector() {
-  const profileLink = elements.mainProfileLink;
-  if (state.networkView === "context" && state.selectedContextId) {
-    const selectedContext = state.data.context_network.relationships.find(
-      (item) => item.id === state.selectedContextId,
-    );
-    if (selectedContext) {
-      renderContextInspector(selectedContext);
-      return;
-    }
-  }
-  if (state.networkView === "co" && state.selectedEdgeId) {
-    const selectedEdge = state.data.secondary_network.edges.find(
-      (edge) => edge.id === state.selectedEdgeId,
-    );
-    if (selectedEdge) {
-      renderCoEdgeInspector(selectedEdge);
-      return;
-    }
-  }
-
-  const accountCollection =
-    state.networkView === "co"
-      ? state.data.secondary_network.nodes
-      : state.data.relationships;
-  const selected = accountCollection.find(
-    (account) => account.username === state.selectedUsername,
-  );
-
-  if (!selected) {
-    const isCo = state.networkView === "co";
-    const isContext = state.networkView === "context";
-    const title = isCo
-      ? "Relación otros–otros"
-      : isContext
-        ? "Lugar y música"
-        : escapeHtml(state.data.main.full_name || `@${state.data.main.username}`);
-    const description = isCo
-      ? "Selecciona un nodo o una arista para inspeccionar las coincidencias."
-      : isContext
-        ? "Selecciona un lugar o una pista para ver sus publicaciones."
-        : "Selecciona una cuenta conectada para ver su evidencia.";
-    elements.accountInspector.innerHTML = `
-      <p class="section-kicker">${isCo ? "Lector de co-comentadores" : isContext ? "Lector de contexto" : "Inspector de nodo"}</p>
-      <div class="central-summary">
-        <div class="avatar avatar-center" aria-hidden="true">${isCo ? "↔" : isContext ? "◇" : "@"}</div>
-        <div>
-          <h3>${title}</h3>
-          <p>${description}</p>
-        </div>
-      </div>
-    `;
-    profileLink.href = profileUrl(state.data.main.username);
-    profileLink.innerHTML = `Abrir @${escapeHtml(state.data.main.username)} <span aria-hidden="true">↗</span>`;
-    return;
-  }
-
-  if (state.networkView === "co") {
-    const maxEvidence = Math.max(
-      selected.secondary_connections,
-      selected.repeated_connections,
-      selected.single_post_connections,
-      selected.comments_captured,
-      selected.commented_posts,
-      1,
-    );
-    const evidence = [
-      ["secondary_connections", "Cuentas co-comentadoras", "#3b6ef5"],
-      ["repeated_connections", "Vínculos repetidos (2+)", "#e89a24"],
-      ["single_post_connections", "Vínculos de una publicación", "#9eb2d1"],
-      ["comments_captured", "Comentarios capturados", "#3b6ef5"],
-      ["commented_posts", "Publicaciones comentadas", "#7185a8"],
-    ];
-    profileLink.href = profileUrl(selected.username);
-    profileLink.innerHTML = `Abrir @${escapeHtml(selected.username)} <span aria-hidden="true">↗</span>`;
-    elements.accountInspector.innerHTML = `
-      <p class="section-kicker">Inspector de nodo</p>
-      <div class="inspector-heading">
-        <div class="avatar" style="background:#3b6ef5">${escapeHtml(initials(selected))}</div>
-        <div>
-          <h3>${escapeHtml(selected.full_name)} ${selected.verified ? '<span class="verified-badge" title="Verificada">●</span>' : ""}</h3>
-          <p>@${escapeHtml(selected.username)} · componente ${formatNumber(selected.component + 1)}</p>
-        </div>
-      </div>
-      <div class="evidence-list">
-        ${evidence
-          .map(([source, label, color]) => {
-            const value = selected[source];
-            const width = Math.max((value / maxEvidence) * 100, value > 0 ? 4 : 0);
-            return `<div class="evidence-row"><span>${escapeHtml(label)}</span><b>${formatNumber(value)}</b><div class="evidence-track"><div class="evidence-fill" style="width:${width}%;background:${color}"></div></div></div>`;
-          })
-          .join("")}
-      </div>
-    `;
-    return;
-  }
-
-  const maxEvidence = Math.max(
-    selected.comments_captured,
-    selected.commented_posts,
-    selected.mentions,
-    selected.tagged,
-    selected.coauthors,
-    1,
-  );
-  const evidence = [
-    ["comments", "Comentarios capturados"],
-    ["commented_posts", "Publicaciones comentadas"],
-    ["mentions", "Menciones"],
-    ["tagged", "Publicaciones etiquetadas"],
-    ["coauthors", "Publicaciones con coautoría"],
-  ];
-  const firstComment = selected.comment_excerpts?.[0]?.text;
-  profileLink.href = profileUrl(selected.username);
-  profileLink.innerHTML = `Abrir @${escapeHtml(selected.username)} <span aria-hidden="true">↗</span>`;
-
-  elements.accountInspector.innerHTML = `
-    <p class="section-kicker">Inspector de nodo</p>
-    <div class="inspector-heading">
-      <div class="avatar" style="background:${SOURCE_META[sourceFor(selected)].color}">${escapeHtml(initials(selected))}</div>
-      <div>
-        <h3>${escapeHtml(selected.full_name)} ${selected.verified ? '<span class="verified-badge" title="Verificada">●</span>' : ""}</h3>
-        <p>@${escapeHtml(selected.username)} · ${formatNumber(selected.related_post_codes.length)} publicaciones relacionadas</p>
-      </div>
-    </div>
-    <div class="evidence-list">
-      ${evidence
-        .map(([source, label]) => {
-          const value = selected[source];
-          const width = Math.max((value / maxEvidence) * 100, value > 0 ? 4 : 0);
-          return `
-            <div class="evidence-row">
-              <span>${escapeHtml(label)}</span>
-              <b>${formatNumber(value)}</b>
-              <div class="evidence-track"><div class="evidence-fill" style="width:${width}%;background:${SOURCE_META[source].color}"></div></div>
-            </div>
-          `;
-        })
-        .join("")}
-    </div>
-    ${firstComment ? `<p class="comment-excerpt">“${escapeHtml(firstComment.slice(0, 180))}”</p>` : ""}
-  `;
-}
-
-function renderMix() {
-  const sourceConfig = [
-    ["comments", "Comentarios", "blue"],
-    ["mentions", "menciones", "magenta"],
-    ["tagged", "etiquetas", "amber"],
-    ["coauthors", "coautores", "green"],
-  ];
-  const maxOccurrences = Math.max(
-    ...sourceConfig.map(([source]) => state.data.sources[source].occurrences),
-    1,
-  );
-
-  elements.mixList.innerHTML = sourceConfig
-    .map(([source, label, color]) => {
-      const item = state.data.sources[source];
-      const width = (item.occurrences / maxOccurrences) * 100;
-      return `
-        <div class="mix-row">
-          <div class="mix-label">
-            <span><i style="background:var(--${color === "blue" ? "blue" : color})"></i>${escapeHtml(label)}</span>
-            <b>${formatNumber(item.occurrences)}</b>
-          </div>
-          <div class="mix-track"><div class="mix-fill ${color}" style="width:${width}%"></div></div>
-        </div>
-      `;
-    })
-    .join("");
-  elements.mixFootnote.textContent = `${formatNumber(
-    state.data.summary.connected_accounts,
-  )} cuentas únicas. Las cifras son ocurrencias de relación, no personas clasificadas.`;
-}
-
-function filteredRelationships() {
-  const query = normalizeSearch(state.search);
-  return rankedRelationships().filter((account) => {
-    if (!query) return true;
-    return normalizeSearch(
-      `${account.username} ${account.full_name} ${account.last_seen || ""}`,
-    ).includes(query);
-  });
-}
-
-function filteredSecondaryEdges() {
-  const query = normalizeSearch(state.search);
-  return state.data.secondary_network.edges.filter((edge) => {
-    if (edge.weight < state.minSharedPosts) return false;
-    if (!query) return true;
-    return normalizeSearch(
-      `${edge.source} ${edge.target} ${edge.post_codes.join(" ")}`,
-    ).includes(query);
-  });
-}
-
-function filteredContextRelationships() {
-  const query = normalizeSearch(state.search);
-  return state.data.context_network.relationships.filter((item) => {
-    if (item.weight < state.minContextPosts) return false;
-    if (!query) return true;
-    return normalizeSearch(
-      `${item.type} ${item.name} ${item.artist_name || ""} ${item.post_codes.join(" ")}`,
-    ).includes(query);
-  });
-}
-
-function renderContextTable() {
-  const allItems = state.data.context_network.relationships
-    .filter((item) => item.weight >= state.minContextPosts)
-    .sort((a, b) => b.weight - a.weight || a.name.localeCompare(b.name, "es"));
-  const filtered = filteredContextRelationships();
-  const locations = allItems.filter((item) => item.type === "location").length;
-  const music = allItems.filter((item) => item.type === "music").length;
-  const publicationLabel = state.minContextPosts === 1 ? "publicación" : "publicaciones";
-  elements.tableSubtitle.textContent = `${formatNumber(locations)} lugares y ${formatNumber(music)} pistas con ${state.minContextPosts}+ ${publicationLabel} en este filtro.`;
-
-  if (!filtered.length) {
-    elements.relationshipsBody.innerHTML =
-      '<tr><td colspan="7" class="table-empty">No hay coincidencias.</td></tr>';
-    elements.tableFooter.textContent = "0 coincidencias";
-    return;
-  }
-
-  elements.relationshipsBody.innerHTML = filtered
-    .map((item) => {
-      const color = contextColor(item.type);
-      const selected = state.selectedContextId === item.id;
-      const typeLabel = item.type === "location" ? "Location Name" : "Music Info";
-      return `
-        <tr data-context-id="${escapeHtml(item.id)}" class="${selected ? "selected" : ""}" tabindex="0">
-          <td>
-            <div class="account-cell">
-              <span class="account-mini-avatar" style="background:${color}">${item.type === "location" ? "◇" : "♫"}</span>
-              <span class="account-copy">
-                <strong>${escapeHtml(contextDisplayName(item))}</strong>
-                <span>${escapeHtml(typeLabel)}</span>
-              </span>
-            </div>
-          </td>
-          <td class="numeric score-cell">${formatNumber(item.weight)}</td>
-          <td colspan="5" hidden></td>
-        </tr>
-      `;
-    })
-    .join("");
-
-  for (const row of elements.relationshipsBody.querySelectorAll("tr[data-context-id]")) {
-    const selectRow = () => selectContext(row.dataset.contextId);
-    row.addEventListener("click", selectRow);
-    row.addEventListener("keydown", (event) => {
-      if (event.key === "Enter" || event.key === " ") {
-        event.preventDefault();
-        selectRow();
-      }
-    });
-  }
-  elements.tableFooter.textContent = `Mostrando ${formatNumber(filtered.length)} de ${formatNumber(allItems.length)} contextos.`;
-}
-
-function renderSecondaryTable() {
-  const allEdges = state.data.secondary_network.edges.filter(
-    (edge) => edge.weight >= state.minSharedPosts,
-  );
-  const filtered = filteredSecondaryEdges();
-  const repeated = allEdges.filter((edge) => edge.weight >= 2).length;
-  elements.tableSubtitle.textContent = `${formatNumber(allEdges.length)} vínculos con ${state.minSharedPosts}+ coincidencia${state.minSharedPosts === 1 ? "" : "s"}; ${formatNumber(repeated)} se repiten en más de una publicación.`;
-
-  if (filtered.length === 0) {
-    elements.relationshipsBody.innerHTML =
-      '<tr><td colspan="7" class="table-empty">No hay coincidencias.</td></tr>';
-    elements.tableFooter.textContent = "0 coincidencias";
-    return;
-  }
-
-  elements.relationshipsBody.innerHTML = filtered
-    .map((edge) => {
-      const selected = state.selectedEdgeId === edge.id;
-      const weightClass = edge.weight >= 3 ? "strong" : edge.weight === 2 ? "medium" : "";
-      return `
-        <tr data-edge-id="${escapeHtml(edge.id)}" class="${selected ? "selected" : ""}" tabindex="0">
-          <td>
-            <div class="pair-cell">
-              <span class="pair-accounts">
-                <span class="pair-account"><a href="${profileUrl(edge.source)}" target="_blank" rel="noopener noreferrer">@${escapeHtml(edge.source)}</a><span>Cuenta A</span></span>
-                <span class="pair-arrow" aria-hidden="true">↔</span>
-                <span class="pair-account"><a href="${profileUrl(edge.target)}" target="_blank" rel="noopener noreferrer">@${escapeHtml(edge.target)}</a><span>Cuenta B</span></span>
-              </span>
-              <span class="pair-weight ${weightClass}" title="Publicaciones compartidas">${formatNumber(edge.weight)}</span>
-            </div>
-          </td>
-          <td class="numeric score-cell">${formatNumber(edge.weight)}</td>
-          <td colspan="5" hidden></td>
-        </tr>
-      `;
-    })
-    .join("");
-
-  for (const row of elements.relationshipsBody.querySelectorAll("tr[data-edge-id]")) {
-    const selectRow = () => selectEdge(row.dataset.edgeId);
-    row.addEventListener("click", selectRow);
-    row.addEventListener("keydown", (event) => {
-      if (event.key === "Enter" || event.key === " ") {
-        event.preventDefault();
-        selectRow();
-      }
-    });
-    for (const link of row.querySelectorAll("a")) {
-      link.addEventListener("click", (event) => event.stopPropagation());
-    }
-  }
-
-  elements.tableFooter.textContent = `Mostrando ${formatNumber(filtered.length)} de ${formatNumber(
-    allEdges.length,
-  )} vínculos inferidos por co-comentario.`;
-}
-
-function renderTable() {
-  if (state.networkView === "co") {
-    renderSecondaryTable();
-    return;
-  }
-  if (state.networkView === "context") {
-    renderContextTable();
-    return;
-  }
-  const allRanked = rankedRelationships();
-  const filtered = filteredRelationships();
-  elements.tableSubtitle.textContent = `${formatNumber(allRanked.length)} cuentas con puntaje positivo; pesos visibles, sin normalización.`;
-
-  if (filtered.length === 0) {
-    elements.relationshipsBody.innerHTML =
-      '<tr><td colspan="7" class="table-empty">No hay coincidencias.</td></tr>';
-    elements.tableFooter.textContent = "0 coincidencias";
-    return;
-  }
-
-  elements.relationshipsBody.innerHTML = filtered
-    .map((account) => {
-      const color = SOURCE_META[sourceFor(account)].color;
-      const selected = state.selectedUsername === account.username;
-      return `
-        <tr data-username="${escapeHtml(account.username)}" class="${selected ? "selected" : ""}" tabindex="0">
-          <td>
-            <div class="account-cell">
-              <span class="account-mini-avatar" style="background:${color}">${escapeHtml(initials(account))}</span>
-              <span class="account-copy">
-                <a href="${profileUrl(account.username)}" target="_blank" rel="noopener noreferrer">@${escapeHtml(account.username)}</a>
-                <span>${escapeHtml(account.full_name || "Sin nombre público")}</span>
-              </span>
-            </div>
-          </td>
-          <td class="numeric score-cell">${formatNumber(account.score)}</td>
-          <td class="numeric">${formatNumber(account.comments_captured)}</td>
-          <td class="numeric">${formatNumber(account.commented_posts)}</td>
-          <td class="numeric">${formatNumber(account.mentions)}</td>
-          <td class="numeric">${formatNumber(account.tagged)}</td>
-          <td class="numeric">${formatNumber(account.coauthors)}</td>
-        </tr>
-      `;
-    })
-    .join("");
-
-  for (const row of elements.relationshipsBody.querySelectorAll("tr[data-username]")) {
-    const selectRow = () => selectAccount(row.dataset.username);
-    row.addEventListener("click", selectRow);
-    row.addEventListener("keydown", (event) => {
-      if (event.key === "Enter" || event.key === " ") {
-        event.preventDefault();
-        selectRow();
-      }
-    });
-    row.querySelector("a")?.addEventListener("click", (event) => event.stopPropagation());
-  }
-
-  elements.tableFooter.textContent = `Mostrando ${formatNumber(filtered.length)} de ${formatNumber(
-    allRanked.length,
-  )} cuentas con puntaje positivo.`;
+  const preferred = ["id", "shortCode", "ownerUsername", "timestamp", "likesCount", "commentsCount", "latestComments", "likers", "likedBy", "mentions", "taggedUsers", "coauthorProducers", "followers"];
+  const orderedFields = [...dictionary.keys()].sort((a, b) => { const ai = preferred.indexOf(a.split(".").at(-1)); const bi = preferred.indexOf(b.split(".").at(-1)); return (ai < 0 ? 99 : ai) - (bi < 0 ? 99 : bi) || a.localeCompare(b); }).slice(0, 18);
+  $("dataDictionary").innerHTML = `<div class="dictionary-heading"><div><p class="section-kicker">Diccionario</p><h3>Variables disponibles, en lenguaje sencillo</h3></div><span>${formatNumber(dictionary.size)} campos detectados</span></div><div class="dictionary-grid">${orderedFields.map((field) => `<div><strong>${escapeHtml(field.split(".").at(-1))}</strong><span>${escapeHtml(dictionary.get(field))}</span></div>`).join("")}</div>`;
 }
 
 function renderPosts() {
-  const posts = [...state.data.posts]
-    .sort((a, b) => b.likes + b.reported_comments - (a.likes + a.reported_comments))
-    .slice(0, 10);
+  const all = state.data.post_table || [];
+  const query = normalizeText(state.postSearch);
+  const filtered = all.filter((post) => !query || normalizeText(`${post.publication} ${post.collaborator} ${post.type} ${post.short_code}`).includes(query));
+  const body = $("postsBody");
+  if (!filtered.length) {
+    body.innerHTML = '<tr><td colspan="6" class="empty-cell">No hay publicaciones que coincidan.</td></tr>';
+  } else {
+    body.innerHTML = filtered.map((post) => `<tr><td class="date-cell">${escapeHtml(formatDate(post.date))}</td><td><a class="publication-link" href="${escapeHtml(safeUrl(post.url))}" target="_blank" rel="noopener noreferrer">${escapeHtml(post.publication || post.short_code)}</a><small>${escapeHtml(post.short_code)}</small></td><td class="numeric">${post.likes == null ? '<span class="missing-value">Sin dato</span>' : formatNumber(post.likes)}</td><td>${post.collaboration ? '<span class="table-pill positive">Sí</span>' : '<span class="muted-value">No</span>'}</td><td>${escapeHtml(post.collaborator || "—")}</td><td><span class="table-pill">${escapeHtml(post.type || "—")}</span></td></tr>`).join("");
+  }
+  $("postsFooter").textContent = `Mostrando ${formatNumber(filtered.length)} de ${formatNumber(all.length)} publicaciones.`;
+  $("postChartChip").textContent = `${formatNumber(state.data.likes_distribution.stats.count || 0)} con likes`;
+  const distributionStats = state.data.likes_distribution?.stats || {};
+  $("percentileStrip").innerHTML = [
+    ["P25", distributionStats.p25], ["Mediana", distributionStats.median], ["P75", distributionStats.p75], ["P90", distributionStats.p90], ["P95", distributionStats.p95],
+  ].map(([label, value]) => `<span><b>${escapeHtml(label)}</b><strong>${value == null ? "—" : formatNumber(value)}</strong></span>`).join("");
+  renderLikesByPost(all);
+  renderLikesHistogram();
+  renderBoxplot();
+  renderPostFrequency();
+  renderLikesTimeline();
+  renderPerformance();
+  renderExceptions();
+  renderContentTypes();
+}
 
-  if (posts.length === 0) {
-    elements.postList.innerHTML = '<p class="table-empty">No hay publicaciones en este alcance.</p>';
+function chartSvg({ width = 760, height = 260, label = "Gráfica", children = "" }) {
+  return `<svg viewBox="0 0 ${width} ${height}" role="img" aria-label="${escapeHtml(label)}">${children}</svg>`;
+}
+
+function gridLines(width, height, padding, maxValue, formatter = formatCompact) {
+  return Array.from({ length: 5 }, (_, index) => {
+    const value = (maxValue / 4) * index;
+    const y = padding.top + (height - padding.top - padding.bottom) - (value / (maxValue || 1)) * (height - padding.top - padding.bottom);
+    return `<line x1="${padding.left}" y1="${y}" x2="${width - padding.right}" y2="${y}" class="chart-grid"/><text x="${padding.left - 8}" y="${y + 4}" text-anchor="end" class="axis-label">${escapeHtml(formatter(value))}</text>`;
+  }).join("");
+}
+
+function verticalBars(items, valueKey, options = {}) {
+  const width = options.width || 760;
+  const height = options.height || 260;
+  const padding = { top: 18, right: 15, bottom: 48, left: 52 };
+  if (!items.length) return '<div class="chart-empty">Sin datos para esta vista.</div>';
+  const values = items.map((item) => Number(item[valueKey]) || 0);
+  const maxValue = Math.max(...values, 1);
+  const plotWidth = width - padding.left - padding.right;
+  const plotHeight = height - padding.top - padding.bottom;
+  const slot = plotWidth / items.length;
+  const barWidth = Math.max(2, Math.min(38, slot * (options.barRatio || 0.64)));
+  const every = Math.max(1, Math.ceil(items.length / (options.maxLabels || 8)));
+  const bars = items.map((item, index) => {
+    const value = Number(item[valueKey]) || 0;
+    const barHeight = value ? (value / maxValue) * plotHeight : 2;
+    const x = padding.left + index * slot + (slot - barWidth) / 2;
+    const y = padding.top + plotHeight - barHeight;
+    const showLabel = index % every === 0 || index === items.length - 1;
+    return `<g class="bar-group"><title>${escapeHtml(item.label || item.period || item.short_code || "")}: ${escapeHtml(formatNumber(value))}</title><rect x="${x}" y="${y}" width="${barWidth}" height="${barHeight}" rx="${Math.min(5, barWidth / 2)}" fill="${options.color || "#ef5f57"}"></rect>${showLabel ? `<text x="${x + barWidth / 2}" y="${height - 18}" text-anchor="middle" class="axis-label">${escapeHtml(item.shortLabel || item.label || formatMonth(item.period))}</text>` : ""}</g>`;
+  }).join("");
+  return chartSvg({ width, height, label: options.label, children: `${gridLines(width, height, padding, maxValue, options.axisFormat || formatCompact)}<line x1="${padding.left}" y1="${padding.top + plotHeight}" x2="${width - padding.right}" y2="${padding.top + plotHeight}" class="chart-axis"/>${bars}` });
+}
+
+function lineChart(items, series, options = {}) {
+  const width = options.width || 760;
+  const height = options.height || 280;
+  const padding = { top: 20, right: 18, bottom: 50, left: 56 };
+  if (!items.length) return '<div class="chart-empty">No hay fechas válidas para esta serie.</div>';
+  const allValues = series.flatMap((item) => items.map((row) => Number(row[item.key]) || 0));
+  const maxValue = Math.max(...allValues, 1);
+  const plotWidth = width - padding.left - padding.right;
+  const plotHeight = height - padding.top - padding.bottom;
+  const xAt = (index) => padding.left + (items.length === 1 ? plotWidth / 2 : (index / (items.length - 1)) * plotWidth);
+  const yAt = (value) => padding.top + plotHeight - (Number(value || 0) / maxValue) * plotHeight;
+  const every = Math.max(1, Math.ceil(items.length / (options.maxLabels || 8)));
+  const paths = series.map((item) => {
+    const points = items.map((row, index) => `${xAt(index)},${yAt(row[item.key])}`).join(" ");
+    return `<polyline points="${points}" fill="none" stroke="${item.color}" stroke-width="${item.width || 3}" stroke-linecap="round" stroke-linejoin="round" class="line-series"/>`;
+  }).join("");
+  const labels = items.map((item, index) => (index % every === 0 || index === items.length - 1) ? `<text x="${xAt(index)}" y="${height - 18}" text-anchor="middle" class="axis-label">${escapeHtml(formatMonth(item.period))}</text>` : "").join("");
+  return chartSvg({ width, height, label: options.label, children: `${gridLines(width, height, padding, maxValue, options.axisFormat || formatCompact)}${paths}${labels}` });
+}
+
+function scatterPerformance(posts) {
+  const items = posts.filter((post) => post.likes != null).sort((a, b) => String(a.date || "").localeCompare(String(b.date || "")));
+  if (!items.length) return '<div class="chart-empty">No hay publicaciones con likes para comparar.</div>';
+  const width = 760, height = 240, padding = { top: 20, right: 22, bottom: 43, left: 57 };
+  const max = Math.max(...items.map((item) => Number(item.likes) || 0), 1);
+  const plotWidth = width - padding.left - padding.right, plotHeight = height - padding.top - padding.bottom;
+  const xAt = (index) => padding.left + (items.length === 1 ? plotWidth / 2 : (index / (items.length - 1)) * plotWidth);
+  const yAt = (value) => padding.top + plotHeight - (Number(value || 0) / max) * plotHeight;
+  const dots = items.map((item, index) => `<circle cx="${xAt(index)}" cy="${yAt(item.likes)}" r="${item.collaboration ? 6 : 4.5}" class="performance-dot${item.collaboration ? " collaborative" : ""}"><title>${escapeHtml(item.short_code)} · ${formatNumber(item.likes)} likes${item.collaboration ? " · colaboración" : ""}</title></circle>`).join("");
+  return chartSvg({ width, height, label: "Publicaciones frente a likes", children: `${gridLines(width, height, padding, max, formatCompact)}${dots}<line x1="${padding.left}" y1="${padding.top + plotHeight}" x2="${width - padding.right}" y2="${padding.top + plotHeight}" class="chart-axis"/><text x="${padding.left}" y="${height - 15}" class="axis-label">más antiguo</text><text x="${width - padding.right}" y="${height - 15}" text-anchor="end" class="axis-label">más reciente</text>` });
+}
+
+function renderPerformance() {
+  $("performanceChart").innerHTML = scatterPerformance(state.data.post_table || []);
+}
+
+function renderLikesByPost(posts) {
+  const items = posts.filter((post) => post.likes != null).sort((a, b) => (a.date || "").localeCompare(b.date || "")).map((post, index) => ({ ...post, shortLabel: String(index + 1), label: post.short_code }));
+  $("likesByPostChart").innerHTML = verticalBars(items, "likes", { height: 300, maxLabels: 12, color: "#ef5f57", label: "Likes por publicación" });
+}
+
+function renderLikesTimeline() {
+  const items = state.data.temporal.monthly || [];
+  $("likesTimelineChart").innerHTML = lineChart(items, [{ key: "likes", color: "#ef5f57" }], { label: "Evolución de likes", height: 260 });
+}
+
+function renderPostFrequency() {
+  const items = state.data.temporal.monthly || [];
+  $("postingFrequencyChart").innerHTML = verticalBars(items, "posts", { height: 230, maxLabels: 8, color: "#3b6ef5", label: "Frecuencia de publicaciones" });
+}
+
+function renderLikesHistogram() {
+  const histogram = state.data.likes_distribution?.histogram || [];
+  $("likesHistogramChart").innerHTML = verticalBars(histogram.map((item) => ({ ...item, label: item.label, shortLabel: item.label })), "count", { height: 230, maxLabels: 8, color: "#7c5ce0", label: "Histograma de likes", barRatio: 0.72 });
+}
+
+function renderBoxplot() {
+  const box = state.data.likes_distribution?.boxplot;
+  if (!box || box.median == null) { $("likesBoxplot").innerHTML = '<div class="chart-empty">No hay likes con dato para dibujar la caja.</div>'; return; }
+  const width = 520, height = 220, left = 48, right = 28, top = 35, bottom = 48;
+  const min = Number(box.min), max = Number(box.max);
+  const x = (value) => left + ((value - min) / (max - min || 1)) * (width - left - right);
+  const y = (height - top - bottom) / 2 + top;
+  const outliers = (box.outliers || []).map((value) => `<circle cx="${x(value)}" cy="${y}" r="4" class="outlier-dot"><title>${escapeHtml(formatNumber(value))} likes</title></circle>`).join("");
+  $("likesBoxplot").innerHTML = chartSvg({ width, height, label: "Boxplot de likes", children: `<line x1="${left}" y1="${y}" x2="${width - right}" y2="${y}" class="box-axis"/><line x1="${x(box.lower_whisker)}" y1="${y}" x2="${x(box.q1)}" y2="${y}" class="box-whisker"/><line x1="${x(box.q3)}" y1="${y}" x2="${x(box.upper_whisker)}" y2="${y}" class="box-whisker"/><line x1="${x(box.lower_whisker)}" y1="${y - 20}" x2="${x(box.lower_whisker)}" y2="${y + 20}" class="box-cap"/><line x1="${x(box.upper_whisker)}" y1="${y - 20}" x2="${x(box.upper_whisker)}" y2="${y + 20}" class="box-cap"/><rect x="${x(box.q1)}" y="${y - 28}" width="${Math.max(2, x(box.q3) - x(box.q1))}" height="56" rx="7" class="box-fill"/><line x1="${x(box.median)}" y1="${y - 28}" x2="${x(box.median)}" y2="${y + 28}" class="box-median"/><text x="${x(box.q1)}" y="${height - 16}" text-anchor="middle" class="axis-label">Q1</text><text x="${x(box.median)}" y="${height - 16}" text-anchor="middle" class="axis-label">Mediana</text><text x="${x(box.q3)}" y="${height - 16}" text-anchor="middle" class="axis-label">Q3</text>${outliers}` });
+}
+
+function renderExceptions() {
+  const exceptions = state.data.exceptions || [];
+  $("exceptionsGrid").innerHTML = exceptions.length ? exceptions.map((post) => `<article class="exception-card"><div class="exception-top"><span class="exception-star">✦</span><div><strong>${formatNumber(post.likes)} likes</strong><span>${escapeHtml(formatDate(post.date))}</span></div><span class="table-pill ${post.collaboration ? "positive" : ""}">${post.collaboration ? "Colaborativa" : "Sin colaboración"}</span></div><p>${escapeHtml(post.content_category || post.type || "Publicación")} · ${escapeHtml(post.short_code)}</p><small>${escapeHtml((post.reasons || []).join("; "))}</small><a href="${escapeHtml(safeUrl(post.url))}" target="_blank" rel="noopener noreferrer">Ver publicación ↗</a></article>`).join("") : '<div class="empty-state panel">No se identificaron valores atípicos con los datos disponibles.</div>';
+}
+
+function renderContentTypes() {
+  const container = $("contentTypes");
+  if (!container) return;
+  const types = state.data.content_types || [];
+  container.innerHTML = `<div class="chart-area small">${verticalBars(types.map((item) => ({ ...item, shortLabel: item.category.slice(0, 5) })), "posts", { height: 210, maxLabels: 6, color: "#2e9fb5", label: "Publicaciones por tipo" })}</div>`;
+}
+
+function renderAudience() {
+  const audience = state.data.audience || [];
+  const query = normalizeText(state.audienceSearch);
+  const filtered = audience.filter((account) => !query || normalizeText(`${account.username} ${account.full_name}`).includes(query));
+  $("audienceBody").innerHTML = filtered.length ? filtered.map((account) => `<tr><td><div class="account-cell"><span class="account-avatar">${escapeHtml((account.full_name || account.username).slice(0, 2).toUpperCase())}</span><span><a href="https://www.instagram.com/${encodeURIComponent(account.username)}/" target="_blank" rel="noopener noreferrer">@${escapeHtml(account.username)}</a><small>${escapeHtml(account.full_name || "Sin nombre público")}</small></span></div></td><td class="numeric"><strong>${formatNumber(account.interactions)}</strong></td><td class="numeric">${formatNumber(account.publications_with_interaction)}</td><td>${escapeHtml(formatDate(account.first_appearance))}</td><td>${escapeHtml(formatDate(account.last_appearance))}</td><td><span class="table-pill recurrence-${normalizeText(account.recurrence)}">${escapeHtml(account.recurrence)}</span></td></tr>`).join("") : '<tr><td colspan="6" class="empty-cell">No hay identidades de interacción en esta fuente.</td></tr>';
+  $("audienceFooter").textContent = `Mostrando ${formatNumber(filtered.length)} de ${formatNumber(audience.length)} cuentas identificadas.`;
+  $("audienceMapChip").textContent = `${formatNumber(audience.length)} cuentas`;
+  $("heatmapChip").textContent = state.data.audience_matrix?.truncated ? "Vista recortada" : "Mapa completo";
+  renderAudienceNetwork();
+  renderConcentration();
+  renderLorenz();
+  renderRecurrence();
+  renderAudienceHeatmap();
+}
+
+function renderConcentration() {
+  const data = state.data.concentration || {};
+  const top = [data.top_5, data.top_10, data.top_20].filter(Boolean);
+  if (!data.available) { $("concentrationChart").innerHTML = '<div class="chart-empty">No hay identidades para medir concentración.</div>'; return; }
+  const width = 620, height = 240, left = 76, right = 30, topY = 28, row = 56;
+  const max = Math.max(...top.map((item) => item.share || 0), 1);
+  const rows = top.map((item, index) => { const y = topY + index * row; const barWidth = (item.share || 0) / max * (width - left - right); return `<text x="${left - 12}" y="${y + 16}" text-anchor="end" class="axis-label">Top ${item.size}</text><rect x="${left}" y="${y}" width="${width - left - right}" height="26" rx="8" class="track-bar"/><rect x="${left}" y="${y}" width="${Math.max(2, barWidth)}" height="26" rx="8" fill="${["#ef5f57", "#e89a24", "#7c5ce0"][index]}"/><text x="${left + Math.max(2, barWidth) + 8}" y="${y + 18}" class="axis-value">${formatPercent(item.share)}</text>`; }).join("");
+  $("concentrationChart").innerHTML = chartSvg({ width, height, label: "Concentración de la audiencia", children: rows });
+}
+
+function renderLorenz() {
+  const points = state.data.concentration?.lorenz || [];
+  if (points.length < 2) { $("lorenzChart").innerHTML = '<div class="chart-empty">No hay suficiente distribución para la curva.</div>'; return; }
+  const width = 620, height = 250, left = 46, right = 18, top = 20, bottom = 42;
+  const xAt = (value) => left + value * (width - left - right);
+  const yAt = (value) => top + (1 - value) * (height - top - bottom);
+  const diagonal = `<line x1="${xAt(0)}" y1="${yAt(0)}" x2="${xAt(1)}" y2="${yAt(1)}" class="lorenz-diagonal"/>`;
+  const path = points.map((point, index) => `${index ? "L" : "M"}${xAt(point.x)},${yAt(point.y)}`).join(" ");
+  $("lorenzChart").innerHTML = chartSvg({ width, height, label: "Curva de Lorenz", children: `${gridLines(width, height, { left, right, top, bottom }, 1, (value) => `${Math.round(value * 100)}%`)}${diagonal}<path d="${path}" class="lorenz-line"/><text x="${left}" y="${height - 15}" class="axis-label">0% cuentas</text><text x="${width - right}" y="${height - 15}" text-anchor="end" class="axis-label">100% cuentas</text>` });
+}
+
+function renderRecurrence() {
+  const categories = state.data.recurrence?.categories || [];
+  $("recurrenceChart").innerHTML = verticalBars(categories.map((item) => ({ ...item, shortLabel: item.label })), "accounts", { height: 230, maxLabels: 3, color: "#1d9a6c", label: "Categorías de recurrencia" });
+}
+
+function renderAudienceHeatmap() {
+  const matrix = state.data.audience_matrix;
+  const container = $("audienceHeatmap");
+  if (!matrix || !matrix.rows?.length || !matrix.posts?.length) { container.innerHTML = '<div class="chart-empty">No hay matriz de audiencia porque no se identificaron cuentas.</div>'; return; }
+  const max = Math.max(matrix.max_value || 0, 1);
+  const header = `<div class="heatmap-row heatmap-header"><span class="heatmap-label"></span>${matrix.posts.map((post) => `<span class="heatmap-column-label" title="${escapeHtml(post)}">${escapeHtml(post.slice(0, 5))}</span>`).join("")}</div>`;
+  const rows = matrix.rows.map((row) => `<div class="heatmap-row"><span class="heatmap-label" title="@${escapeHtml(row.username)}">@${escapeHtml(row.username.slice(0, 10))}</span>${row.values.map((value) => `<span class="heatmap-cell" style="--heat:${value / max}" title="@${escapeHtml(row.username)} · ${formatNumber(value)} interacciones"><i></i></span>`).join("")}</div>`).join("");
+  container.innerHTML = `<div class="heatmap-scroll" style="--heat-columns:${matrix.posts.length}">${header}${rows}</div><div class="heatmap-scale"><span>Menos</span><i></i><i></i><i></i><i></i><span>Más</span></div>`;
+}
+
+function networkColor(index) {
+  return ["#3b6ef5", "#ef5f57", "#1d9a6c", "#e89a24", "#8b5cf6", "#0f9f91", "#db2777"][index % 7];
+}
+
+function renderNetworkSvg(svgId, edgeId, nodeId, network, kind) {
+  const svg = $(svgId);
+  if (!svg) return;
+  const edgeLayer = $(edgeId);
+  const nodeLayer = $(nodeId);
+  edgeLayer.replaceChildren();
+  nodeLayer.replaceChildren();
+  const nodes = network?.nodes || [];
+  const edges = network?.edges || [];
+  if (!nodes.length) {
+    svg.hidden = true;
     return;
   }
-
-  elements.postList.innerHTML = posts
-    .map((post, index) => {
-      const caption = post.caption.trim() || "Publicación sin texto en el pie";
-      const coverage = post.reported_comments
-        ? Math.min(post.captured_comments / post.reported_comments, 1)
-        : null;
-      const coverageText = coverage === null ? "Sin comentarios" : `${Math.round(coverage * 100)}% muestra`;
-      return `
-        <article class="post-card">
-          <span class="post-rank">${String(index + 1).padStart(2, "0")}</span>
-          <div class="post-body">
-            <div class="post-meta">
-              <time datetime="${escapeHtml(post.timestamp || "")}">${escapeHtml(formatDate(post.timestamp))}</time>
-              <span class="post-author">@${escapeHtml(post.owner_username || "desconocida")}</span>
-            </div>
-            <a class="post-caption" href="${postUrl(post.short_code)}" target="_blank" rel="noopener noreferrer" title="${escapeHtml(caption)}">${escapeHtml(caption)}</a>
-            <div class="post-metrics">
-              <span title="Likes">♡ ${formatNumber(post.likes)}</span>
-              <span title="Comentarios reportados">◌ ${formatNumber(post.reported_comments)}</span>
-              <span class="coverage-chip" title="Comentarios presentes en latestComments">${escapeHtml(coverageText)}</span>
-            </div>
-          </div>
-        </article>
-      `;
-    })
-    .join("");
-}
-
-function renderLimitations() {
-  elements.manualLimitations.innerHTML = state.data.quality.limitations
-    .map((limitation) => `<li>${escapeHtml(limitation)}</li>`)
-    .join("");
-}
-
-function updateTableMode() {
-  const isCo = state.networkView === "co";
-  const isContext = state.networkView === "context";
-  const compact = isCo || isContext;
-  elements.tableKicker.textContent = isCo
-    ? "Co-comentarios"
-    : isContext
-      ? "Contexto"
-      : "Ranking";
-  elements.tableTitle.textContent = isCo
-    ? "Vínculos entre cuentas"
-    : isContext
-      ? "Lugares y música"
-      : "Cuentas relacionadas";
-  elements.accountColumn.textContent = isCo ? "Cuenta A ↔ Cuenta B" : isContext ? "Contexto" : "Cuenta";
-  elements.scoreColumn.textContent = isCo || isContext ? "Publicaciones" : "Puntaje";
-  elements.commentsColumn.hidden = compact;
-  elements.postsColumn.hidden = compact;
-  elements.mentionsColumn.hidden = compact;
-  elements.taggedColumn.hidden = compact;
-  elements.coauthorsColumn.hidden = compact;
-  elements.accountSearch.placeholder = isCo
-    ? "Buscar en pares"
-    : isContext
-      ? "Buscar lugar o música"
-      : "Buscar cuenta";
-}
-
-function updateNetworkControls() {
-  const isCo = state.networkView === "co";
-  const isContext = state.networkView === "context";
-  const isEgo = state.networkView === "ego";
-  const secondarySummary = state.data.secondary_network.summary;
-  const contextSummary = state.data.context_network.summary;
-
-  elements.egoViewButton.classList.toggle("active", isEgo);
-  elements.coViewButton.classList.toggle("active", isCo);
-  elements.contextViewButton.classList.toggle("active", isContext);
-  elements.egoViewButton.setAttribute("aria-selected", String(isEgo));
-  elements.coViewButton.setAttribute("aria-selected", String(isCo));
-  elements.contextViewButton.setAttribute("aria-selected", String(isContext));
-  elements.viewSwitchNote.textContent = isCo
-    ? "La cuenta principal queda fuera del centro: las aristas unen únicamente cuentas periféricas."
-    : isContext
-      ? "La cuenta principal conecta con cada lugar o pista observada en sus publicaciones."
-      : "La cuenta principal se mantiene fija al centro.";
-
-  elements.networkKicker.textContent = isCo
-    ? "Co-comment network"
-    : isContext
-      ? "Context network"
-      : "Ego network";
-  elements.networkDescriptionText.textContent = isCo
-    ? "Dos cuentas están conectadas si comentan la misma publicación; el peso cuenta publicaciones compartidas."
-    : isContext
-      ? "Cada arista une la cuenta con un Location Name o Music Info; el peso cuenta publicaciones."
-      : "El grosor de cada vínculo representa su ponderación dentro del criterio elegido.";
-  elements.networkDescription.textContent = isCo
-    ? "Red de co-comentadores; las cuentas con más enlaces visibles se colocan más cerca."
-    : isContext
-      ? "Red entre la cuenta principal y sus lugares y pistas musicales observadas."
-      : "La cuenta principal aparece en el centro y los vínculos usan el criterio seleccionado.";
-  elements.metricSelect.closest("label").hidden = !isEgo;
-  elements.weightToggle.hidden = !isEgo;
-  elements.minSharedControl.hidden = !isCo;
-  elements.minContextControl.hidden = !isContext;
-  elements.coCommentNote.hidden = !isCo;
-  elements.contextNote.hidden = !isContext;
-  elements.egoLegend.hidden = !isEgo;
-  elements.coLegend.hidden = !isCo;
-  elements.contextLegend.hidden = !isContext;
-  elements.networkHint.textContent = isCo
-    ? "Pasa sobre una arista para ver las publicaciones compartidas"
-    : isContext
-      ? "Pasa sobre un lugar o una pista para ver sus publicaciones"
-      : "Pasa sobre un nodo y haz clic para inspeccionarlo";
-  elements.networkFooterNote.innerHTML = isCo
-    ? "Las coincidencias no prueban una relación social directa."
-    : isContext
-      ? "Una ubicación o una pista describen el contenido publicado."
-      : '<i class="center-example"></i> La cuenta central no participa en su propio puntaje.';
-
-  const maxTop = isCo ? 200 : 100;
-  elements.topRange.max = String(maxTop);
-  if (state.topLimit > maxTop) state.topLimit = maxTop;
-  elements.topRange.value = String(state.topLimit);
-  elements.topRangeText.textContent = isCo ? "Vínculos visibles" : isContext ? "Contextos visibles" : "Cuentas visibles";
-  elements.topRangeValue.value = String(state.topLimit);
-  elements.minSharedRange.value = String(state.minSharedPosts);
-  elements.minSharedValue.value = String(state.minSharedPosts);
-  const maxContextWeight = Math.max(
-    ...state.data.context_network.relationships.map((item) => item.weight),
-    1,
-  );
-  elements.minContextRange.max = String(Math.max(2, maxContextWeight));
-  if (state.minContextPosts > Number(elements.minContextRange.max)) {
-    state.minContextPosts = 1;
+  svg.hidden = false;
+  const centerX = 500, centerY = 315;
+  const central = nodes.find((node) => node.is_central);
+  const peripheral = nodes.filter((node) => !node.is_central).sort((a, b) => (b.weight || 0) - (a.weight || 0));
+  const visible = peripheral.slice(0, 70);
+  const visibleIds = new Set([...(central ? [central.id] : []), ...visible.map((node) => node.id)]);
+  const positions = new Map();
+  if (central) positions.set(central.id, { x: centerX, y: centerY });
+  const maxWeight = Math.max(...visible.map((node) => node.weight || 0), 1);
+  visible.forEach((node, index) => {
+    const angle = (index / Math.max(visible.length, 1)) * Math.PI * 2 - Math.PI / 2;
+    const radiusX = kind === "cooccurrence" ? 330 : 280 + 40 * Math.sin(index * 1.7);
+    const radiusY = kind === "cooccurrence" ? 245 : 215 + 25 * Math.cos(index * 1.3);
+    positions.set(node.id, { x: centerX + Math.cos(angle) * radiusX, y: centerY + Math.sin(angle) * radiusY });
+  });
+  const maxEdge = Math.max(...edges.map((edge) => edge.weight || 0), 1);
+  edges.filter((edge) => visibleIds.has(edge.source) && visibleIds.has(edge.target)).forEach((edge) => {
+    const source = positions.get(edge.source), target = positions.get(edge.target);
+    if (!source || !target) return;
+    const line = document.createElementNS("http://www.w3.org/2000/svg", "line");
+    line.setAttribute("x1", source.x); line.setAttribute("y1", source.y); line.setAttribute("x2", target.x); line.setAttribute("y2", target.y);
+    line.setAttribute("class", "network-edge");
+    line.setAttribute("stroke", kind === "collaboration" ? "#1d9a6c" : kind === "cooccurrence" ? "#e89a24" : "#3b6ef5");
+    line.setAttribute("stroke-opacity", String(0.16 + 0.42 * (edge.weight / maxEdge)));
+    line.setAttribute("stroke-width", String(0.8 + 4 * (edge.weight / maxEdge)));
+    const title = document.createElementNS("http://www.w3.org/2000/svg", "title");
+    title.textContent = `${edge.source} ↔ ${edge.target}: ${formatNumber(edge.weight)} vínculos ponderados`;
+    line.appendChild(title);
+    edgeLayer.appendChild(line);
+  });
+  if (central) {
+    const group = document.createElementNS("http://www.w3.org/2000/svg", "g");
+    group.setAttribute("class", "network-node central-node");
+    group.setAttribute("transform", `translate(${centerX} ${centerY})`);
+    const halo = document.createElementNS("http://www.w3.org/2000/svg", "circle"); halo.setAttribute("r", "55"); halo.setAttribute("class", "central-halo");
+    const circle = document.createElementNS("http://www.w3.org/2000/svg", "circle"); circle.setAttribute("r", "37"); circle.setAttribute("class", "central-circle");
+    const text = document.createElementNS("http://www.w3.org/2000/svg", "text"); text.setAttribute("x", "0"); text.setAttribute("y", "5"); text.setAttribute("text-anchor", "middle"); text.setAttribute("class", "central-label"); text.textContent = `@${central.username.slice(0, 14)}`;
+    const title = document.createElementNS("http://www.w3.org/2000/svg", "title"); title.textContent = `Cuenta principal @${central.username}`;
+    group.append(halo, circle, text, title); nodeLayer.appendChild(group);
   }
-  elements.minContextRange.value = String(state.minContextPosts);
-  elements.minContextValue.value = String(state.minContextPosts);
-  elements.coQualityCounts.innerHTML = `
-    <span>${formatNumber(secondarySummary.single_post_edges)} con 1 coincidencia</span>
-    <span>${formatNumber(secondarySummary.repeated_edges)} repetidos</span>
-    <span>componente mayor: ${formatNumber(secondarySummary.largest_component)}</span>
-  `;
-  elements.contextQualityCounts.innerHTML = `
-    <span>${formatNumber(contextSummary.unique_locations)} lugares</span>
-    <span>${formatNumber(contextSummary.unique_music_items)} pistas</span>
-    <span>${formatNumber(contextSummary.posts_with_context)} publicaciones</span>
-  `;
-
-  document.querySelector(".network-controls")?.classList.toggle("co-mode", isCo || isContext);
-  updateTableMode();
+  visible.forEach((node, index) => {
+    const position = positions.get(node.id);
+    if (!position) return;
+    const group = document.createElementNS("http://www.w3.org/2000/svg", "g");
+    group.setAttribute("class", "network-node");
+    group.setAttribute("transform", `translate(${position.x} ${position.y})`);
+    const radius = 5 + Math.sqrt((node.weight || 0) / maxWeight) * 12;
+    const account = (state.data.audience || []).find((item) => item.username === node.username);
+    const interactionColor = account?.likes && !account?.comments ? "#1d9a6c" : account?.comments && !account?.likes ? "#3b6ef5" : "#7c5ce0";
+    const circle = document.createElementNS("http://www.w3.org/2000/svg", "circle"); circle.setAttribute("r", radius); circle.setAttribute("fill", kind === "interaction" ? interactionColor : networkColor(index)); circle.setAttribute("class", "network-dot");
+    const title = document.createElementNS("http://www.w3.org/2000/svg", "title"); title.textContent = `@${node.username}: ${formatNumber(node.weight)} apariciones ponderadas`;
+    group.append(circle, title);
+    if (index < 16) {
+      const label = document.createElementNS("http://www.w3.org/2000/svg", "text");
+      label.setAttribute("x", position.x < centerX ? -radius - 7 : radius + 7); label.setAttribute("y", "4"); label.setAttribute("text-anchor", position.x < centerX ? "end" : "start"); label.setAttribute("class", "network-label"); label.textContent = `@${node.username.slice(0, 17)}`;
+      group.appendChild(label);
+    }
+    nodeLayer.appendChild(group);
+  });
 }
 
-function updateWeightControls() {
-  const pairings = [
-    ["comments", "commentsWeight", "commentsWeightValue"],
-    ["commented_posts", "commentedPostsWeight", "commentedPostsWeightValue"],
-    ["mentions", "mentionsWeight", "mentionsWeightValue"],
-    ["tagged", "taggedWeight", "taggedWeightValue"],
-    ["coauthors", "coauthorsWeight", "coauthorsWeightValue"],
-  ];
-  for (const [source, inputId, outputId] of pairings) {
-    elements[inputId].value = String(state.weights[source]);
-    elements[outputId].value = String(state.weights[source]);
+function renderAudienceNetwork() {
+  const network = state.data.networks?.interaction;
+  const empty = $("audienceNetworkEmpty");
+  if (!network?.nodes?.length || (network.nodes.length <= 1)) { $("audienceNetworkSvg").hidden = true; empty.hidden = false; $("audienceNetworkLegend").innerHTML = ""; return; }
+  empty.hidden = true;
+  renderNetworkSvg("audienceNetworkSvg", "audienceNetworkEdges", "audienceNetworkNodes", network, "interaction");
+  $("audienceNetworkLegend").innerHTML = `<span><i class="legend-dot central"></i> cuenta analizada</span><span><i class="legend-dot account"></i> comentario</span><span><i class="legend-dot collab"></i> like</span><span><i class="legend-dot cooc"></i> ambos</span><span class="legend-note">Tamaño = frecuencia identificada</span>`;
+}
+
+function renderCollaborations() {
+  const collaborators = state.data.collaborations?.collaborators || [];
+  $("collaborationChart").innerHTML = verticalBars(collaborators.slice(0, 16).map((item) => ({ ...item, shortLabel: item.username.slice(0, 5) })), "collaborations", { height: 280, maxLabels: 12, color: "#1d9a6c", label: "Colaboradores vs. número de colaboraciones" });
+  $("collaborationTimelineChart").innerHTML = lineChart(state.data.temporal.monthly || [], [{ key: "collaborations", color: "#1d9a6c" }], { height: 260, label: "Evolución de colaboraciones" });
+  const comparison = state.data.collaboration_comparison || {};
+  const rows = [comparison.collaborative, comparison.non_collaborative].filter(Boolean);
+  $("collaborationComparison").innerHTML = rows.map((row, index) => `<div class="comparison-row"><div><strong>${index === 0 ? "Con colaboración" : "Sin colaboración"}</strong><span>${formatNumber(row.posts)} publicaciones</span></div><div class="comparison-track"><i style="width:${Math.min(100, (row.mean_likes || 0) / Math.max(...rows.map((item) => item.mean_likes || 0), 1) * 100)}%;background:${index === 0 ? "#1d9a6c" : "#9aa7ba"}"></i></div><b>${row.mean_likes == null ? "Sin dato" : formatNumber(row.mean_likes)} <small>likes promedio</small></b></div>`).join("") || '<div class="empty-state">No hay datos para comparar.</div>';
+  const union = [...new Set([...(state.data.audience || []).map((item) => item.username), ...collaborators.map((item) => item.username)])];
+  const byName = new Map((state.data.relationships || []).map((item) => [item.username, item]));
+  $("overlapBody").innerHTML = union.length ? union.map((username) => { const row = byName.get(username) || { username, interactions: 0, collaborations: 0 }; const both = row.interactions > 0 && row.collaborations > 0; return `<tr><td><a href="https://www.instagram.com/${encodeURIComponent(username)}/" target="_blank" rel="noopener noreferrer">@${escapeHtml(username)}</a></td><td class="numeric">${formatNumber(row.interactions)}</td><td class="numeric">${formatNumber(row.collaborations)}</td><td>${both ? '<span class="table-pill positive">Sí</span>' : '<span class="muted-value">No</span>'}</td><td>${both ? "En ambas redes" : row.interactions ? "Sólo interacción" : "Sólo colaboración"}</td></tr>`; }).join("") : '<tr><td colspan="5" class="empty-cell">No hay cuentas para comparar.</td></tr>';
+  $("overlapFooter").textContent = `${formatNumber((state.data.networks?.comparison?.both || []).length)} cuentas aparecen en ambas redes.`;
+  $("overlapChip").textContent = `${formatNumber((state.data.networks?.comparison?.both || []).length)} en ambas`;
+}
+
+function renderNetworks() {
+  const network = state.data.networks?.[state.network] || state.data.networks?.interaction;
+  const labels = { interaction: ["Red de interacción", "Cuentas que interactúan alrededor de la cuenta principal."], collaboration: ["Red de colaboración", "Cuentas acreditadas como coautoras alrededor de la cuenta principal."], cooccurrence: ["Red de coincidencia", "Cuentas que aparecen juntas en una misma publicación; no prueba contacto directo."] };
+  $("networkTitle").textContent = labels[state.network][0]; $("networkDescription").textContent = labels[state.network][1];
+  const empty = $("mainNetworkEmpty");
+  if (!network?.nodes?.length || network.nodes.length <= 1) { $("mainNetworkSvg").hidden = true; empty.hidden = false; $("mainNetworkFooter").textContent = "No hay vínculos identificados para esta red."; } else { empty.hidden = true; renderNetworkSvg("mainNetworkSvg", "mainNetworkEdges", "mainNetworkNodes", network, state.network); $("mainNetworkFooter").textContent = `${formatNumber(network.summary?.nodes || 0)} nodos · ${formatNumber(network.summary?.edges || 0)} vínculos · ${formatNumber(network.summary?.connected_components || 0)} componentes`; }
+  $("mainNetworkLegend").innerHTML = `<span><i class="legend-dot ${state.network === "collaboration" ? "collab" : state.network === "cooccurrence" ? "cooc" : "account"}"></i> ${state.network === "collaboration" ? "colaboración" : state.network === "cooccurrence" ? "coincidencia" : "interacción"}</span><span class="legend-note">El tamaño es frecuencia; la distancia es visual</span>`;
+  const communities = network?.communities || [];
+  $("communitySummary").innerHTML = communities.length ? `<strong>Comunidades observadas</strong>${communities.slice(0, 8).map((component, index) => `<span class="community-chip"><i style="background:${networkColor(index)}"></i>Grupo ${index + 1}: ${formatNumber(component.length)} ${component.length === 1 ? "cuenta" : "cuentas"}</span>`).join("")}<small>Una comunidad es un conjunto de cuentas con más vínculos entre sí que con el resto; no implica amistad ni identidad.</small>` : '<small>No hay suficientes vínculos para separar comunidades.</small>';
+  const comparison = state.data.networks?.comparison || {};
+  $("networkComparisonChart").innerHTML = verticalBars([{ label: "Ambas", shortLabel: "Ambas", accounts: (comparison.both || []).length }, { label: "Sólo interacción", shortLabel: "Interacción", accounts: (comparison.interaction_only || []).length }, { label: "Sólo colaboración", shortLabel: "Colaboración", accounts: (comparison.collaboration_only || []).length }], "accounts", { height: 240, maxLabels: 3, color: "#7c5ce0", label: "Comparación de redes" });
+  const bridges = state.data.networks?.co_occurrence?.bridge_accounts || [];
+  $("bridgeBody").innerHTML = bridges.length ? bridges.slice(0, 12).map((item) => `<tr><td><a href="https://www.instagram.com/${encodeURIComponent(item.username)}/" target="_blank" rel="noopener noreferrer">@${escapeHtml(item.username)}</a></td><td class="numeric">${formatNumber(item.degree)}</td><td class="numeric">${formatNumber(item.betweenness)}</td></tr>`).join("") : '<tr><td colspan="3" class="empty-cell">No hay estructura suficiente para identificar puentes.</td></tr>';
+  document.querySelectorAll("[data-network]").forEach((button) => button.classList.toggle("active", button.dataset.network === state.network));
+}
+
+function renderEvolution() {
+  const monthly = state.data.temporal.monthly || [];
+  $("evolutionChart").innerHTML = lineChart(monthly, [{ key: "posts", color: "#3b6ef5", width: 2.5 }, { key: "likes", color: "#ef5f57" }, { key: "reported_comments", color: "#e89a24" }, { key: "collaborations", color: "#1d9a6c" }], { height: 320, label: "Línea temporal de la cuenta" });
+  const timeline = monthly.map((item) => ({ period: item.period, active: item.interaction_accounts, new: (item.new_accounts || []).length, inactive: (item.inactive_accounts || []).length }));
+  $("audienceTimelineChart").innerHTML = lineChart(timeline, [{ key: "active", color: "#3b6ef5" }, { key: "new", color: "#ef5f57" }, { key: "inactive", color: "#a4adbd" }], { height: 280, label: "Historia de la audiencia" });
+}
+
+function renderFindings() {
+  const findings = state.data.findings || [];
+  $("findingsGrid").innerHTML = findings.map((finding, index) => `<article class="finding-card panel"><span class="finding-number">${String(index + 1).padStart(2, "0")}</span><h3>${escapeHtml(finding.title)}</h3><div class="finding-evidence"><strong>Evidencia</strong><p>${escapeHtml(finding.evidence)}</p></div><div class="finding-visual"><span>▧</span> ${escapeHtml(finding.visualization)}</div><small>${escapeHtml(finding.caution)}</small></article>`).join("");
+  const correlations = state.data.correlations || [];
+  if (correlations.length) {
+    const card = document.createElement("article"); card.className = "finding-card panel correlation-card"; card.innerHTML = `<span class="finding-number">↗</span><h3>Asociaciones estadísticas</h3><p>Una correlación describe que dos medidas varían juntas; no demuestra causalidad.</p><div class="correlation-list">${correlations.map((item) => `<div><strong>${escapeHtml(item.label)}</strong><span>${item.pearson == null ? "—" : `r ${item.pearson}`} · ${escapeHtml(item.strength)}</span></div>`).join("")}</div>`;
+    $("findingsGrid").appendChild(card);
   }
-  const combined = state.networkView === "ego" && state.metric === "combined";
-  elements.weightToggle.disabled = !combined;
-  if (!combined) {
-    elements.weightToggle.setAttribute("aria-expanded", "false");
-    elements.weightPanel.hidden = true;
-  }
+  $("questionsList").innerHTML = (state.data.open_questions || []).map((item) => `<li>${escapeHtml(item)}</li>`).join("");
+  $("limitationsList").innerHTML = (state.data.limitations || []).map((item) => `<li>${escapeHtml(item)}</li>`).join("");
 }
 
-function renderAll() {
-  renderHeader();
-  updateNetworkControls();
-  renderKpis();
-  renderMonthlyCharts(state.data.monthly_series);
-  renderScopeOptions();
-  updateWeightControls();
-  renderNetwork();
-  renderInspector();
-  renderMix();
-  renderTable();
-  renderPosts();
-  renderLimitations();
+function setExplanation(key, shows, observes, caution) {
+  const element = document.querySelector(`[data-explanation="${key}"]`);
+  if (!element) return;
+  element.innerHTML = `<div><strong>¿Qué muestra?</strong><p>${escapeHtml(shows)}</p></div><div><strong>¿Qué podemos observar?</strong><p>${escapeHtml(observes)}</p></div><div class="caution"><strong>¿Qué NO podemos concluir?</strong><p>${escapeHtml(caution)}</p></div>`;
 }
 
-function quoteCsv(value) {
-  let text = String(value ?? "");
-  if (/^[=+\-@]/.test(text)) text = `'${text}`;
-  return `"${text.replaceAll('"', '""')}"`;
+function renderExplanations() {
+  const data = state.data; const stats = data.likes_distribution?.stats || {}; const concentration = data.concentration || {}; const coverage = data.data_coverage || {};
+  setExplanation("postLikes", "Cada barra es una publicación y su altura representa likes conocidos.", stats.mean == null ? "No hay suficientes likes con dato." : `El promedio es ${formatNumber(stats.mean)} y la mediana ${formatNumber(stats.median)}; se pueden comparar las publicaciones entre sí.`, "Un valor alto no identifica quién interactuó ni demuestra una causa.");
+  setExplanation("likesTimeline", "La línea une la suma mensual de likes con las publicaciones que tienen fecha.", `${formatNumber(data.profile.posts)} publicaciones y ${formatNumber(data.profile.total_likes)} likes conocidos forman el periodo visible.`, "Una subida simultánea no prueba que una publicación haya causado el cambio.");
+  setExplanation("frequency", "Cada barra cuenta publicaciones de un mes.", `La frecuencia media observada es ${formatNumber(data.profile.frequency_per_month)} publicaciones por mes con actividad.`, "Los meses sin fecha o sin publicaciones no se rellenan con suposiciones.");
+  setExplanation("performance", "Cada punto representa una publicación; la altura muestra likes y el color marca si tiene colaboración.", "Se ven publicaciones que destacan y otras que permanecen dentro del rango habitual.", "La gráfica no determina por qué una publicación recebeu más likes.");
+  setExplanation("histogram", "El histograma agrupa publicaciones en rangos de likes.", stats.p25 != null ? `La mitad central se concentra alrededor de ${formatNumber(stats.p25)}–${formatNumber(stats.p75)} likes.` : "No hay una distribución de likes utilizable.", "Un rango amplio puede reflejar contenido, fecha o simplemente variability observada.");
+  setExplanation("boxplot", "La caja muestra el rango central y los puntos son valores alejados.", stats.p95 != null ? `El percentil 95 es ${formatNumber(stats.p95)} likes.` : "No hay caja disponible.", "Un punto atípico no es un error ni una explicación.");
+  setExplanation("audienceMap", "La cuenta analizada ocupa el centro y las cuentas periféricas representan interacciones identificadas.", `${formatNumber(data.profile.unique_audience_accounts)} cuentas aparecen alrededor del nodo central.`, "El mapa no demuestra amistad, influencia ni alcance total.");
+  setExplanation("concentration", "Las barras muestran qué porcentaje de las interacciones identificadas corresponde a los grupos más recurrentes.", concentration.top_10?.share == null ? "No se puede calcular sin identidades." : `El top 10 representa ${formatPercent(concentration.top_10.share)} de las interacciones observadas.`, "La concentración de comentarios identificados no es concentración de todos los likes.");
+  setExplanation("lorenz", "La curva compara la reparto observado con una línea de reparto uniforme.", concentration.gini == null ? "No hay datos suficientes para Gini o Lorenz." : `El índice Gini observado es ${formatNumber(concentration.gini)}; más alto indica más concentración.`, "El índice depende de la cobertura y de las identidades disponibles.");
+  setExplanation("recurrence", "Las barras dividen cuentas según cuántas veces aparecen y durante cuánto tiempo.", (data.recurrence?.definition || ""), "Estas etiquetas son una clasificación construida, no una identidad social.");
+  setExplanation("heatmap", "Cada fila es una cuenta y cada columna una publicación; una celda más intensa significa más interacciones.", data.audience_matrix?.explanation || "No hay identidades para construir la matriz.", "La matriz no representa la audiencia total ni causality.");
+  setExplanation("collaborators", "Cada barra cuenta las publicaciones en las que aparece un colaborador.", `${formatNumber(data.collaborations?.unique_collaborators || 0)} cuentas tienen alguna colaboración registrada.`, "Colaborar en una publicación no demuestra una relación personal completa.");
+  setExplanation("collaborationTimeline", "La línea muestra colaboraciones distintas por mes.", "Se observan cambios en la actividad de colaboración del periodo.", "No permite saber si una colaboración cambió el alcance sin más contexto.");
+  setExplanation("collaborationComparison", "Compara promedios, medianas y número de publicaciones de dos grupos.", "La diferencia entre grupos es una observación del archivo.", "No demuestra que la colaboración cause más likes.");
+  setExplanation("contentTypes", "Agrupa las publicaciones por el tipo técnico declarado en cada registro.", "Se puede comparar cantidad y likes entre imagen, vídeo, reel o carrusel.", "El tipo técnico no describe por sí mismo el tema ni la intención de la publicación.");
+  setExplanation("network", "Los nodos son cuentas y las líneas son vínculos observados; el tamaño sigue el peso.", "Las redes permiten ver repetición, componentes y posiciones centrales; la betweenness señala cuentas que conectan partes.", "Una posición central es una posición estructural dentro de los datos, no liderazgo.");
+  setExplanation("networkComparison", "Compara cuentas presentes en interacción, colaboración o ambas redes.", "La intersección muestra qué función aparece en cada grupo.", "Las dos redes miden relaciones diferentes y no deben intercambiarse.");
+  setExplanation("bridges", "Las cuentas puente son las que tienen mayor posición de conectividad en la red de coincidencia.", "Ayudan a localizar puntos que conectan partes de la red.", "Conectar dos partes no equivale a liderazgo o influencia.");
+  setExplanation("evolution", "Las líneas comparan publicaciones, likes, comentarios y colaboraciones a lo largo del tiempo.", "Se puede observar cuándo cambia la actividad y qué señal acompaña ese cambio.", "La simultaneidad no es causalidad.");
+  setExplanation("audienceTimeline", "Las líneas muestran cuentas activas, nuevas y no observadas en cada mes.", "Se puede seguir la entrada de cuentas y los cambios de actividad por periodo.", "Que una cuenta no aparezca en un mes no significa que haya dejado de existir o modificado su comportamiento.");
+  if (!coverage.likes_identities_available) setExplanation("postLikes", "Cada barra es una publicación; sólo se usan likes agregados porque el archivo no contiene identidades de likers.", `Hay ${formatNumber(data.profile.likes_known)} publicaciones con likes disponibles y ${formatNumber(data.profile.likes_missing)} sin dato.`, "No se puede atribuir un like a una cuenta concreta.");
+}
+
+async function loadAnalysis() {
+  if (!state.data || state.loading) return;
+  setLoading(true, "Actualizando la lectura…", "Recalculando indicadores a partir de la copia en memoria.");
+  try {
+    const query = new URLSearchParams({ main: $("mainAccount").value.trim().replace(/^@/, ""), scope: $("scopeSelect").value });
+    const response = await fetch(`/api/analysis?${query.toString()}`, { headers: { Accept: "application/json" }, cache: "no-store" });
+    state.data = await parseResponse(response);
+    renderAll();
+    showToast(`Lectura actualizada para @${state.data.main.username}.`);
+  } catch (error) {
+    showToast(error.message, true);
+  } finally { setLoading(false); }
+}
+
+async function uploadFiles(fileList) {
+  const files = [...fileList].filter((file) => file.name.toLocaleLowerCase("es").endsWith(".json"));
+  if (!files.length) { setUploadStatus("Selecciona al menos un archivo con extensión .json.", "error"); return; }
+  setUploadStatus(`Leyendo ${files.length} ${files.length === 1 ? "archivo" : "archivos"}…`);
+  setLoading(true, "Leyendo los archivos…", "Los originales permanecerán intactos; sólo se crea una copia temporal.");
+  try {
+    const payload = { files: [] };
+    for (const file of files) {
+      const text = await file.text();
+      let parsed;
+      try { parsed = JSON.parse(text.replace(/^\uFEFF/, "")); } catch { throw new Error(`${file.name} no contiene un JSON válido.`); }
+      payload.files.push({ name: file.name, payload: parsed });
+    }
+    const response = await fetch("/api/analysis", { method: "POST", headers: { Accept: "application/json", "Content-Type": "application/json" }, body: JSON.stringify(payload) });
+    state.data = await parseResponse(response);
+    state.sourceStatus = { has_data: true, source_name: state.data.source_name };
+    renderAll(); showReport(); setUploadStatus(`${files.length} archivo(s) cargado(s).`, "success"); showToast("Informe listo para explorar.");
+  } catch (error) { setUploadStatus(error.message, "error"); showToast(error.message, true); } finally { setLoading(false); $("fileInput").value = ""; }
+}
+
+async function loadServerFiles() {
+  setLoading(true, "Usando archivos del servidor…", "Se leerán los JSON disponibles sin modificarlos.");
+  try {
+    const response = await fetch("/api/load-server", { method: "POST", headers: { Accept: "application/json" } });
+    state.data = await parseResponse(response);
+    renderAll(); showReport(); showToast("Se cargaron los archivos detectados en el servidor.");
+  } catch (error) { showToast(error.message, true); } finally { setLoading(false); }
 }
 
 function downloadCsv() {
-  const isCo = state.networkView === "co";
-  const isContext = state.networkView === "context";
-  const rows = isCo
-    ? filteredSecondaryEdges()
-    : isContext
-      ? filteredContextRelationships()
-      : filteredRelationships();
-  const header = isCo
-    ? ["cuenta_a", "cuenta_b", "publicaciones_compartidas", "codigos_publicaciones"]
-    : isContext
-      ? ["tipo", "nombre", "artista", "publicaciones", "codigos_publicaciones"]
-      : [
-          "cuenta",
-          "nombre",
-          "puntaje",
-          "comentarios_capturados",
-          "publicaciones_comentadas",
-          "menciones",
-          "publicaciones_etiquetadas",
-          "publicaciones_coautoria",
-          "ultima_actividad",
-        ];
-  const dataRows = isCo
-    ? rows.map((edge) => [
-        edge.source,
-        edge.target,
-        edge.weight,
-        edge.post_codes.join(" "),
-      ])
-    : isContext
-      ? rows.map((item) => [
-          item.type === "location" ? "Location Name" : "Music Info",
-          item.name,
-          item.artist_name || "",
-          item.weight,
-          item.post_codes.join(" "),
-        ])
-      : rows.map((account) => [
-          account.username,
-          account.full_name,
-          account.score,
-          account.comments_captured,
-          account.commented_posts,
-          account.mentions,
-          account.tagged,
-          account.coauthors,
-          account.last_seen || "",
-        ]);
-  const csv = [
-    header.map(quoteCsv).join(","),
-    ...dataRows.map((row) => row.map(quoteCsv).join(",")),
-  ].join("\n");
-
-  const blob = new Blob(["\ufeff", csv], { type: "text/csv;charset=utf-8" });
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement("a");
-  link.href = url;
-  link.download = isCo
-    ? `co-comentarios-${state.data.main.username}.csv`
-    : isContext
-      ? `contexto-${state.data.main.username}.csv`
-      : `relaciones-${state.data.main.username}-${state.metric}.csv`;
-  document.body.appendChild(link);
-  link.click();
-  link.remove();
-  window.setTimeout(() => URL.revokeObjectURL(url), 0);
-  showToast(
-    `CSV preparado con ${formatNumber(rows.length)} ${isCo ? "vínculos" : isContext ? "contextos" : "cuentas"}.`,
-  );
+  const rows = state.data?.post_table || [];
+  const header = ["fecha", "publicacion", "codigo", "likes", "colaboracion", "colaboradores", "tipo", "posicion_respecto_promedio"];
+  const quote = (value) => `"${String(value ?? "").replaceAll('"', '""')}"`;
+  const csv = [header.map(quote).join(","), ...rows.map((row) => [row.date, row.publication, row.short_code, row.likes ?? "", row.collaboration ? "sí" : "no", row.collaborator, row.type, row.position_vs_average ?? ""].map(quote).join(","))].join("\n");
+  const url = URL.createObjectURL(new Blob(["\ufeff", csv], { type: "text/csv;charset=utf-8" }));
+  const link = document.createElement("a"); link.href = url; link.download = `publicaciones-${state.data.main.username}.csv`; document.body.appendChild(link); link.click(); link.remove(); setTimeout(() => URL.revokeObjectURL(url), 0);
 }
 
-function setNetworkView(view) {
-  if (!["ego", "co", "context"].includes(view) || state.networkView === view) return;
-  state.networkView = view;
-  state.selectedUsername = null;
-  state.selectedEdgeId = null;
-  state.selectedContextId = null;
-  updateNetworkControls();
-  updateWeightControls();
-  renderKpis();
-  renderNetwork();
-  renderInspector();
-  renderTable();
-  networkCamera?.reset();
-}
-
-function setPage(page) {
-  if (!["dashboard", "manual"].includes(page)) return;
-  state.currentPage = page;
-  elements.dashboardPage.hidden = page !== "dashboard";
-  elements.manualPage.hidden = page !== "manual";
-  for (const button of document.querySelectorAll("[data-page]")) {
-    const active = button.dataset.page === page;
-    button.classList.toggle("active", active);
-    button.setAttribute("aria-selected", String(active));
-  }
-  window.scrollTo({ top: 0, behavior: "smooth" });
+function downloadNetworkCsv() {
+  const network = state.data?.networks?.[state.network];
+  if (!network) return;
+  const quote = (value) => `"${String(value ?? "").replaceAll('"', '""')}"`;
+  const nodes = ["tipo,id,central,peso", ...(network.nodes || []).map((node) => [node.is_central ? "central" : "cuenta", node.id, node.is_central ? "sí" : "no", node.weight].map(quote).join(","))];
+  const edges = ["origen,destino,peso,tipo", ...(network.edges || []).map((edge) => [edge.source, edge.target, edge.weight, edge.kind || state.network].map(quote).join(","))];
+  const csv = [...nodes, "", ...edges].join("\n");
+  const url = URL.createObjectURL(new Blob(["\ufeff", csv], { type: "text/csv;charset=utf-8" }));
+  const link = document.createElement("a"); link.href = url; link.download = `red-${state.network}-${state.data.main.username}.csv`; document.body.appendChild(link); link.click(); link.remove(); setTimeout(() => URL.revokeObjectURL(url), 0);
+  showToast("Red preparada en CSV; también puedes abrirla en Gephi.");
 }
 
 function bindEvents() {
-  elements.startUploadButton.addEventListener("click", () => elements.startFileInput.click());
-  elements.startFileInput.addEventListener("change", () =>
-    uploadDataset(elements.startFileInput.files?.[0]),
-  );
-  elements.uploadButton.addEventListener("click", () => elements.fileInput.click());
-  elements.fileInput.addEventListener("change", () => uploadDataset(elements.fileInput.files?.[0]));
-
-  for (const eventName of ["dragenter", "dragover"]) {
-    elements.startDropZone.addEventListener(eventName, (event) => {
-      event.preventDefault();
-      elements.startDropZone.classList.add("dragging");
-    });
-  }
-  for (const eventName of ["dragleave", "drop"]) {
-    elements.startDropZone.addEventListener(eventName, (event) => {
-      event.preventDefault();
-      elements.startDropZone.classList.remove("dragging");
-    });
-  }
-  elements.startDropZone.addEventListener("drop", (event) => {
-    uploadDataset(event.dataTransfer?.files?.[0]);
-  });
-  elements.resumeButton.addEventListener("click", () => {
-    showDashboard();
-    loadAnalysis({ announce: true });
-  });
-  elements.homeButton.addEventListener("click", () => {
-    if (state.serverStatus?.has_data) {
-      elements.resumeButton.hidden = false;
-      setStartStatus(
-        `Hay un archivo cargado actualmente: ${state.serverStatus.source_name}.`,
-        "success",
-      );
-    } else {
-      setStartStatus("Formato requerido: JSON de Apify Instagram Scraper.");
-    }
-    showStartScreen();
-  });
-
-  elements.mainForm.addEventListener("submit", (event) => {
-    event.preventDefault();
-    loadAnalysis({ announce: true });
-  });
-
-  elements.scopeSelect.addEventListener("change", () => loadAnalysis());
-  elements.egoViewButton.addEventListener("click", () => setNetworkView("ego"));
-  elements.coViewButton.addEventListener("click", () => setNetworkView("co"));
-  elements.contextViewButton.addEventListener("click", () => setNetworkView("context"));
-  for (const button of document.querySelectorAll("[data-page]")) {
-    button.addEventListener("click", () => setPage(button.dataset.page));
-  }
-  elements.backToDashboard.addEventListener("click", () => setPage("dashboard"));
-  elements.minSharedRange.addEventListener("input", (event) => {
-    state.minSharedPosts = Number(event.target.value);
-    elements.minSharedValue.value = String(state.minSharedPosts);
-    state.selectedUsername = null;
-    state.selectedEdgeId = null;
-    renderNetwork();
-    renderInspector();
-    renderTable();
-  });
-  elements.minContextRange.addEventListener("input", (event) => {
-    state.minContextPosts = Number(event.target.value);
-    elements.minContextValue.value = String(state.minContextPosts);
-    state.selectedContextId = null;
-    renderNetwork();
-    renderInspector();
-    renderTable();
-  });
-  elements.metricSelect.addEventListener("change", () => {
-    state.metric = elements.metricSelect.value;
-    updateWeightControls();
-    renderNetwork();
-    renderInspector();
-    renderTable();
-  });
-
-  elements.weightToggle.addEventListener("click", () => {
-    const willOpen = elements.weightPanel.hidden;
-    elements.weightPanel.hidden = !willOpen;
-    elements.weightToggle.setAttribute("aria-expanded", String(willOpen));
-  });
-
-  const weightBindings = [
-    ["commentsWeight", "comments"],
-    ["commentedPostsWeight", "commented_posts"],
-    ["mentionsWeight", "mentions"],
-    ["taggedWeight", "tagged"],
-    ["coauthorsWeight", "coauthors"],
-  ];
-  for (const [elementId, source] of weightBindings) {
-    elements[elementId].addEventListener("input", (event) => {
-      state.weights[source] = Number(event.target.value);
-      updateWeightControls();
-      renderNetwork();
-      renderInspector();
-      renderTable();
-    });
-  }
-
-  elements.zoomInButton.addEventListener("click", () => networkCamera?.zoomIn());
-  elements.zoomOutButton.addEventListener("click", () => networkCamera?.zoomOut());
-  elements.resetZoomButton.addEventListener("click", () => networkCamera?.reset());
-  elements.topRange.addEventListener("input", (event) => {
-    state.topLimit = Number(event.target.value);
-    elements.topRangeValue.value = String(state.topLimit);
-    renderNetwork();
-  });
-
-  elements.accountSearch.addEventListener("input", (event) => {
-    state.search = event.target.value;
-    renderTable();
-  });
-
-  elements.downloadCsv.addEventListener("click", downloadCsv);
-  elements.methodologyButton.addEventListener("click", () => setPage("manual"));
-  elements.networkSvg.addEventListener("click", () => {
-    if (state.networkView === "context") {
-      selectContext(null);
-    } else {
-      selectAccount(null);
-    }
-  });
-  window.addEventListener("resize", hideNetworkTooltip);
+  const fileInput = $("fileInput");
+  $("chooseFilesButton").addEventListener("click", (event) => { event.stopPropagation(); fileInput.click(); });
+  $("dropZone").addEventListener("click", (event) => { if (event.target !== $("chooseFilesButton")) fileInput.click(); });
+  $("dropZone").addEventListener("keydown", (event) => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); fileInput.click(); } });
+  fileInput.addEventListener("change", () => uploadFiles(fileInput.files || []));
+  ["dragenter", "dragover"].forEach((name) => $("dropZone").addEventListener(name, (event) => { event.preventDefault(); $("dropZone").classList.add("dragging"); }));
+  ["dragleave", "drop"].forEach((name) => $("dropZone").addEventListener(name, (event) => { event.preventDefault(); $("dropZone").classList.remove("dragging"); }));
+  $("dropZone").addEventListener("drop", (event) => uploadFiles(event.dataTransfer?.files || []));
+  $("loadServerButton").addEventListener("click", loadServerFiles);
+  $("replaceButton").addEventListener("click", () => fileInput.click());
+  $("accountForm").addEventListener("submit", (event) => { event.preventDefault(); loadAnalysis(); });
+  $("scopeSelect").addEventListener("change", loadAnalysis);
+  $("postSearch").addEventListener("input", (event) => { state.postSearch = event.target.value; renderPosts(); renderExplanations(); });
+  $("audienceSearch").addEventListener("input", (event) => { state.audienceSearch = event.target.value; renderAudience(); });
+  $("downloadPosts").addEventListener("click", downloadCsv);
+  $("downloadNetwork").addEventListener("click", downloadNetworkCsv);
+  document.querySelectorAll("[data-network]").forEach((button) => button.addEventListener("click", () => { state.network = button.dataset.network; renderNetworks(); renderExplanations(); }));
+  const sections = [...document.querySelectorAll("main > .report-section")];
+  const observer = new IntersectionObserver((entries) => entries.forEach((entry) => { if (entry.isIntersecting) document.querySelectorAll(".nav-link").forEach((link) => link.classList.toggle("active", link.dataset.section === entry.target.id)); }), { rootMargin: "-25% 0px -65% 0px" });
+  sections.forEach((section) => observer.observe(section));
 }
 
 async function initialize() {
-  cacheElements();
-  networkCamera = createNetworkCamera(elements.networkSvg, (zoom) => {
-    elements.zoomLevel.value = `${Math.round(zoom * 100)}%`;
-  });
   bindEvents();
-  showStartScreen();
-  setStartStatus("Comprobando si existe un archivo cargado…");
-  setBusy(true, "Cargando la estructura de la fuente…");
   try {
-    const response = await fetch("/api/status", {
-      headers: { Accept: "application/json" },
-      cache: "no-store",
-    });
-    const status = await parseResponse(response);
-    state.serverStatus = status;
-    if (status.has_data) {
-      elements.resumeButton.hidden = false;
-      setStartStatus(
-        `Hay un archivo disponible: ${status.source_name}. Puedes continuar o reemplazarlo.`,
-        "success",
-      );
-    } else {
-      elements.resumeButton.hidden = true;
-      setStartStatus("Formato requerido: JSON de Apify Instagram Scraper.");
+    const response = await fetch("/api/status", { headers: { Accept: "application/json" }, cache: "no-store" });
+    state.sourceStatus = await parseResponse(response);
+    if (state.sourceStatus.available_files?.length) {
+      $("loadServerButton").hidden = false;
+      $("loadServerButton").textContent = `Usar ${state.sourceStatus.available_files.length} archivo(s) del servidor`;
     }
   } catch (error) {
-    setStartStatus(`No se pudo comprobar el estado del servidor: ${error.message}`, "error");
-  } finally {
-    setBusy(false);
+    setUploadStatus(`No se pudo comprobar el servidor: ${error.message}`, "error");
   }
+  showUpload();
 }
 
-if (document.readyState === "loading") {
-  document.addEventListener("DOMContentLoaded", initialize, { once: true });
-} else {
-  initialize();
-}
+if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", initialize, { once: true });
+else initialize();
