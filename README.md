@@ -68,6 +68,8 @@ Los comentarios de `latestComments` sí pueden identificar cuentas cuando incluy
 
 Cada gráfica incluye tres apartados: **¿Qué muestra?**, **¿Qué podemos observar?** y **¿Qué NO podemos concluir?**.
 
+La explicación completa de los cálculos, modelos matemáticos, diccionario de datos y alcance de cada sección está en [`GUIA_DE_ANALISIS.md`](GUIA_DE_ANALISIS.md).
+
 ## API local
 
 - `GET /api/health` — comprobación de servicio.
@@ -87,6 +89,7 @@ Cada gráfica incluye tres apartados: **¿Qué muestra?**, **¿Qué podemos obse
 - `web/app.js`: carga, navegación, tablas, gráficas SVG y explicaciones.
 - `web/styles.css`: sistema visual responsive.
 - `tests/`: pruebas de análisis y de la capa HTTP.
+- `GUIA_DE_ANALISIS.md`: guía detallada de secciones, cálculos, modelos, diccionario y límites.
 
 ## Dependencias
 

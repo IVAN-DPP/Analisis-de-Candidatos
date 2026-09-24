@@ -54,6 +54,7 @@
         </div>
         <footer class="upload-footer">
           <span>Los archivos originales nunca se sobrescriben.</span>
+          <a href="/GUIA_DE_ANALISIS.md" target="_blank" rel="noopener noreferrer">Leer la guía completa</a>
           <strong>Equipo de analítica de datos AP</strong>
         </footer>
       </div>
@@ -78,6 +79,7 @@
           <a class="nav-link" href="#findings" data-section="findings">Hallazgos</a>
         </nav>
         <div class="topbar-actions">
+          <a class="guide-link" href="/GUIA_DE_ANALISIS.md" target="_blank" rel="noopener noreferrer">Guía completa</a>
           <span class="source-chip" id="sourceChip">Sin fuente cargada</span>
           <button class="button button-light" id="replaceButton" type="button">Cambiar JSON</button>
         </div>
@@ -366,8 +368,8 @@
           <div class="section-heading">
             <div><p class="section-kicker">Nivel 5 · Cambios</p><h2 id="evolutionTitle">Evolución</h2><p>La línea temporal ayuda a ver cuándo aparecen y desaparecen señales; no convierte coincidencia en causa.</p></div><span class="section-index">06</span>
           </div>
-          <article class="panel chart-panel"><div class="panel-heading"><div><h3>Línea temporal de la cuenta</h3><p>Publicaciones, likes conocidos, comentarios y colaboraciones por mes.</p></div></div><div class="chart-area large-chart" id="evolutionChart"></div><div class="chart-explanation" data-explanation="evolution"></div></article>
-          <article class="panel chart-panel"><div class="panel-heading"><div><h3>Historia de la audiencia</h3><p>Cuentas activas, nuevas y que dejan de aparecer en cada periodo.</p></div></div><div class="chart-area" id="audienceTimelineChart"></div><div class="chart-explanation" data-explanation="audienceTimeline"></div></article>
+          <article class="panel chart-panel"><div class="panel-heading"><div><h3>Línea temporal de la cuenta</h3><p>Publicaciones, likes conocidos, comentarios y colaboraciones por mes.</p></div></div><div class="chart-legend" aria-label="Leyenda de la línea temporal de la cuenta"><span><i style="background:#3b6ef5"></i>Publicaciones</span><span><i style="background:#ef5f57"></i>Likes conocidos</span><span><i style="background:#e89a24"></i>Comentarios reportados</span><span><i style="background:#1d9a6c"></i>Colaboraciones</span></div><div class="chart-area large-chart" id="evolutionChart"></div><div class="chart-explanation" data-explanation="evolution"></div></article>
+          <article class="panel chart-panel"><div class="panel-heading"><div><h3>Historia de la audiencia</h3><p>Cuentas activas, nuevas y que dejan de aparecer en cada periodo.</p></div></div><div class="chart-legend" aria-label="Leyenda de la historia de la audiencia"><span><i style="background:#3b6ef5"></i>Cuentas activas</span><span><i style="background:#ef5f57"></i>Cuentas nuevas</span><span><i style="background:#a4adbd"></i>Cuentas no observadas</span></div><div class="chart-area" id="audienceTimelineChart"></div><div class="chart-explanation" data-explanation="audienceTimeline"></div></article>
         </section>
 
         <section class="report-section" id="findings" aria-labelledby="findingsTitle">
