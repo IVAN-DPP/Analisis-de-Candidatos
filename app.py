@@ -254,6 +254,13 @@ def analysis_guide():
     return response
 
 
+@app.route("/GUIA_ARQUITECTURA.pdf")
+def architecture_guide():
+    response = send_from_directory(BASE_DIR, "GUIA_ARQUITECTURA.pdf", mimetype="application/pdf")
+    response.headers["Cache-Control"] = "no-cache"
+    return response
+
+
 @app.route("/", defaults={"path": ""})
 @app.route("/<path:path>")
 def serve_static(path: str):

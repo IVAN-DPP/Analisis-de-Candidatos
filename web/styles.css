@@ -98,7 +98,7 @@ a { color: inherit; }
 .nav-link { min-height: 34px; display: inline-flex; align-items: center; padding: 0 11px; border-radius: 8px; color: var(--ink-500); font-size: .68rem; font-weight: 800; text-decoration: none; white-space: nowrap; }
 .nav-link:hover { color: var(--ink-900); }
 .nav-link.active { color: var(--ink-900); background: #fff; box-shadow: 0 1px 5px rgba(23,32,51,.1); }
-.topbar-actions { justify-self: end; display: flex; align-items: center; gap: 11px; min-width: 0; }.guide-link { color: var(--blue); font-size: .68rem; font-weight: 800; text-decoration: none; white-space: nowrap; }.guide-link:hover { text-decoration: underline; text-underline-offset: 3px; }.source-chip { max-width: 280px; overflow: hidden; color: var(--ink-600); font-size: .73rem; text-overflow: ellipsis; white-space: nowrap; }
+.topbar-actions { justify-self: end; display: flex; align-items: center; justify-content: flex-end; flex-wrap: wrap; gap: 8px 11px; min-width: 0; }.guide-link { color: var(--blue); font-size: .64rem; font-weight: 800; text-decoration: none; white-space: nowrap; }.guide-link:hover { text-decoration: underline; text-underline-offset: 3px; }.source-chip { max-width: 280px; overflow: hidden; color: var(--ink-600); font-size: .73rem; text-overflow: ellipsis; white-space: nowrap; }
 
 /* Encabezado del informe */
 .report-hero { display: grid; grid-template-columns: minmax(0, 1fr) 350px; align-items: end; gap: 55px; padding: 66px 4px 32px; }

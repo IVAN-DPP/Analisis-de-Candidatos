@@ -68,7 +68,7 @@ Los comentarios de `latestComments` sí pueden identificar cuentas cuando incluy
 
 Cada gráfica incluye tres apartados: **¿Qué muestra?**, **¿Qué podemos observar?** y **¿Qué NO podemos concluir?**.
 
-La explicación completa de los cálculos, modelos matemáticos, diccionario de datos y alcance de cada sección está en [`GUIA_DE_ANALISIS.md`](GUIA_DE_ANALISIS.md).
+La explicación completa de los cálculos, modelos matemáticos, diccionario de datos y alcance de cada sección está en [`GUIA_DE_ANALISIS.md`](GUIA_DE_ANALISIS.md). La documentación detallada de la arquitectura y de cada función está en [`GUIA_ARQUITECTURA.pdf`](GUIA_ARQUITECTURA.pdf) y su fuente editable en [`GUIA_ARQUITECTURA.md`](GUIA_ARQUITECTURA.md).
 
 ## API local
 
