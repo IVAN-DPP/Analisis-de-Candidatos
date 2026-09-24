@@ -41,9 +41,9 @@ La portada incluye los créditos:
 
 La cuenta principal se detecta automáticamente como la autora con más publicaciones del JSON. Por eso el mismo programa funciona con cuentas diferentes, por ejemplo:
 
-- `Cesar.json` → `@cesar.vargas__`
-- `Daniela.json` → `@nani_rojaa`
-- `Hader.json` → `@rios.hader`
+- `Fulanito1.json` → `@fulanito1`
+- `Fulanito2.json` → `@fulanito2`
+- `Fulanito3.json` → `@fulanito3`
 
 El selector **Alcance** permite analizar:
 
