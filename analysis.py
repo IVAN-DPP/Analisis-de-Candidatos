@@ -2161,6 +2161,210 @@ def _build_findings(
     return findings[:10]
 
 
+def _build_profile_narrative(
+    main_username: str,
+    profile: dict[str, Any],
+    stats: dict[str, Any],
+    audience: list[dict[str, Any]],
+    concentration: dict[str, Any],
+    comparison: dict[str, Any],
+    exceptions: list[dict[str, Any]],
+    networks: dict[str, Any],
+    coverage: dict[str, Any],
+    content_types: list[dict[str, Any]],
+    monthly: list[dict[str, Any]],
+    collaborations: dict[str, Any],
+) -> dict[str, Any]:
+    """Construye un retrato descriptivo, nunca un diagnóstico de la persona.
+
+    El texto convierte cifras en una lectura narrativa comprensible.  Cada
+    dimensión conserva su evidencia y su límite para que una interpretación
+    sobre la cuenta no se convierta en una afirmación sobre su personalidad,
+    intención o vida privada.
+    """
+
+    posts = int(profile.get("posts") or 0)
+    likes = int(profile.get("total_likes") or 0)
+    likes_known = int(profile.get("likes_known") or 0)
+    mean_likes = stats.get("mean")
+    median_likes = stats.get("median")
+    frequency = profile.get("frequency_per_month")
+    top_type = max(content_types, key=lambda item: item.get("posts", 0), default={})
+    top_type_name = top_type.get("category") or "sin categoría dominante"
+    top_type_posts = int(top_type.get("posts") or 0)
+    collaborative_posts = int(profile.get("collaborative_posts") or 0)
+    collaborator_count = int(profile.get("unique_collaborators") or 0)
+    audience_count = len(audience)
+    observed_interactions = int(concentration.get("total_interactions") or 0)
+    top10_share = concentration.get("top_10", {}).get("share")
+    persistent_accounts = sum(1 for row in audience if row.get("recurrence") == "Persistente")
+    interaction_network = networks.get("interaction", {})
+    network_summary = interaction_network.get("summary", {})
+    date_start = profile.get("date_start")
+    date_end = profile.get("date_end")
+
+    if mean_likes is not None and median_likes is not None:
+        response_shape = (
+            "Los valores altos elevan el promedio por encima de la mediana"
+            if mean_likes > median_likes
+            else "El promedio y la mediana están relativamente próximos"
+            if mean_likes >= median_likes
+            else "La mediana aparece por encima del promedio"
+        )
+    else:
+        response_shape = "No hay suficientes likes con dato para comparar promedio y mediana"
+    if frequency is None:
+        rhythm_text = "No hay fechas suficientes para calcular un ritmo de publicación."
+    else:
+        rhythm_text = (
+            f"La fuente registra {posts} publicaciones y una frecuencia observada de {frequency} por mes. "
+            "Esa cifra describe el ritmo del archivo, no una rutina que la cuenta mantenga fuera de la descarga."
+        )
+    if coverage.get("likes_identities_available"):
+        response_limit = (
+            "Hay identidades de likes en la fuente, pero su cobertura puede seguir siendo parcial."
+        )
+    else:
+        response_limit = (
+            "Los likes son agregados: el archivo no permite atribuir esa respuesta a personas concretas."
+        )
+    if audience_count:
+        audience_text = (
+            f"Se observan {audience_count} cuentas y {observed_interactions} interacciones identificadas. "
+            f"El top 10 representa {top10_share * 100:.1f}% de esas interacciones."
+            if top10_share is not None
+            else f"Se observan {audience_count} cuentas y {observed_interactions} interacciones identificadas."
+        )
+    else:
+        audience_text = "No hay identidades suficientes para describir una audiencia observada."
+    if collaborations.get("posts"):
+        collaboration_text = (
+            f"Hay {collaborative_posts} publicaciones colaborativas con {collaborator_count} cuentas distintas. "
+            "La colaboración es una asociación registrada en el contenido; no equivale a una relación personal completa."
+        )
+        collaborative_mean = comparison.get("collaborative", {}).get("mean_likes")
+        non_collaborative_mean = comparison.get("non_collaborative", {}).get("mean_likes")
+        if collaborative_mean is not None and non_collaborative_mean is not None:
+            collaboration_text += (
+                f" La media observada es {collaborative_mean} en colaborativas y {non_collaborative_mean} en no colaborativas; "
+                "esa diferencia sirve para formular una pregunta, no para demostrar una causa."
+            )
+    else:
+        collaboration_text = "No se registran publicaciones colaborativas en el alcance seleccionado."
+
+    peak_post = profile.get("max_post") or {}
+    if peak_post.get("short_code"):
+        peak_text = (
+            f"La publicación con más likes registrados es {peak_post['short_code']} "
+            f"({peak_post.get('likes', 0)} likes)."
+        )
+    else:
+        peak_text = "No hay una publicación máxima identificable en la fuente."
+    if audience_count and top10_share is not None:
+        conversation_text = (
+            f"La conversación visible está repartida entre {audience_count} cuentas; "
+            f"el top 10 concentra {top10_share * 100:.1f}% de las interacciones identificadas."
+        )
+    else:
+        conversation_text = "No hay una conversación suficientemente identificada para describirla."
+    paragraphs = [
+        f"En el recorte disponible, @{main_username} muestra {posts} publicaciones y una actividad que ocupa {len(monthly)} periodos mensuales. La primera lectura es de comportamiento observable, no de personalidad.",
+        f"El contenido visible se concentra principalmente en {top_type_name} ({top_type_posts} publicaciones). {peak_text}",
+        f"La respuesta agregada tiene una media de {mean_likes if mean_likes is not None else 'sin dato'} likes y una mediana de {median_likes if median_likes is not None else 'sin dato'}. {response_shape}.",
+        f"{conversation_text} {collaboration_text}",
+        "La lectura más prudente es comparar periodos, formatos y redes sin convertir una coincidencia en una explicación.",
+    ]
+
+    dimensions = [
+        {
+            "key": "ritmo",
+            "title": "Ritmo de actividad",
+            "text": rhythm_text,
+            "evidence": f"Publicaciones: {posts}; frecuencia observada: {frequency if frequency is not None else 'sin dato'} por mes.",
+            "caution": "Una descarga puede comenzar en una fecha concreta o tener una ventana de captura diferente.",
+        },
+        {
+            "key": "contenido",
+            "title": "Composición del contenido",
+            "text": (
+                f"La categoría con más registros es {top_type_name}, con {top_type_posts} publicaciones. "
+                "El tipo técnico describe el formato del archivo, no el tema ni la intención de la cuenta."
+            ),
+            "evidence": f"Categorías disponibles: {len(content_types)}; registros de la categoría principal: {top_type_posts}.",
+            "caution": "No se puede atribuir una personalidad, consumo o estrategia a partir del formato técnico.",
+        },
+        {
+            "key": "respuesta",
+            "title": "Respuesta observada",
+            "text": (
+                f"Se suman {likes} likes en {likes_known} publicaciones con dato. {response_shape}. "
+                f"El informe identifica {len(exceptions)} publicaciones excepcionales según los umbrales del archivo."
+            ),
+            "evidence": f"Media: {mean_likes if mean_likes is not None else 'sin dato'}; mediana: {median_likes if median_likes is not None else 'sin dato'}.",
+            "caution": response_limit,
+        },
+        {
+            "key": "conversacion",
+            "title": "Conversación y audiencia",
+            "text": audience_text,
+            "evidence": f"Cuentas observadas: {audience_count}; persistentes: {persistent_accounts}; comentarios identificados: {coverage.get('comment_records', 0)}.",
+            "caution": "Una cuenta observada no representa necesariamente el total de seguidores, personas alcanzadas o una comunidad.",
+        },
+        {
+            "key": "colaboracion",
+            "title": "Colaboración y contexto",
+            "text": collaboration_text,
+            "evidence": f"Colaboraciones: {collaborations.get('total', 0)}; cuentas colaboradoras: {collaborator_count}.",
+            "caution": "La presencia de una cuenta en un post no demuestra una relación, influencia o acuerdo fuera de la fuente.",
+        },
+        {
+            "key": "red",
+            "title": "Estructura de vínculos",
+            "text": (
+                f"La red de interacción contiene {network_summary.get('nodes', 0)} nodos y {network_summary.get('edges', 0)} vínculos. "
+                "Su forma describe conexiones que el archivo permite observar, no una jerarquía social."
+            ),
+            "evidence": f"Componentes conectados: {network_summary.get('connected_components', 0)}; comunidades: {len(interaction_network.get('communities', []))}.",
+            "caution": "Centralidad y comunidades son medidas de esta red, no indicadores de influencia.",
+        },
+    ]
+
+    summary_parts = [
+        f"En este recorte, @{main_username} aparece con {posts} publicaciones"
+    ]
+    if date_start and date_end:
+        summary_parts.append(f"entre {date_start} y {date_end}")
+    if likes:
+        summary_parts.append(f"y {likes} likes reportados")
+    summary_parts[-1] = f"{summary_parts[-1]}."
+    summary_parts.append("La lectura describe lo que dejó la descarga, no una evaluación de la persona.")
+    summary = " ".join(summary_parts)
+
+    return {
+        "title": f"Retrato provisional de @{main_username}",
+        "summary": summary,
+        "paragraphs": paragraphs,
+        "dimensions": dimensions,
+        "questions": [
+            "¿Qué coincide con los picos de likes: el contenido, la fecha, la colaboración o la forma de captura?",
+            "¿Qué parte de la conversación está ausente porque no se capturaron identidades?",
+            "¿Las cuentas que aparecen varias veces forman una relación sostenida o sólo coinciden en esta fuente?",
+        ],
+        "limits": [
+            "Este retrato no diagnostica personalidad, intención, valores ni vida privada.",
+            "Las frases describen señales observables; no reemplazan la evidencia ni sus límites.",
+            "Los likes agregados no identifican personas y las coincidencias en una publicación no prueban conversación directa.",
+        ],
+        "generated_from": {
+            "posts": posts,
+            "likes_known": likes_known,
+            "audience_accounts": audience_count,
+            "collaborators": collaborator_count,
+            "months": len(monthly),
+        },
+    }
+
+
 def _data_coverage(bundle: DatasetBundle, selected_posts: list[dict[str, Any]], profile: dict[str, Any]) -> dict[str, Any]:
     selected_codes = {str(post.get("_post_key")) for post in selected_posts if post.get("_post_key")}
     all_like_events = sum(len(events) for events in bundle.like_events_by_post.values())
@@ -2536,7 +2740,7 @@ def analyze_payloads(
                 }
                 for username in shared_positions
             ],
-            "explanation": "La comparación de ranks describe una posición dentro de cada red; no convierte una posición en influencia.",
+            "explanation": "La comparación de rangos describe una posición dentro de cada red; no convierte una posición en influencia.",
         }
     )
     # Alias antiguos: permiten que herramientas existentes sigan leyendo la red
@@ -2589,6 +2793,24 @@ def analyze_payloads(
     inventory = _inventory(bundle, all_posts)
     limitations = _limitations(coverage, bundle)
     findings = _build_findings(profile, stats, audience, concentration, comparison, exceptions, networks, coverage)
+    profile_narrative = _build_profile_narrative(
+        main_username=main,
+        profile=profile,
+        stats=stats,
+        audience=audience,
+        concentration=concentration,
+        comparison=comparison,
+        exceptions=exceptions,
+        networks=networks,
+        coverage=coverage,
+        content_types=content_types,
+        monthly=monthly,
+        collaborations={
+            "posts": len(collaboration_posts),
+            "total": sum(post["collaboration_count"] for post in collaboration_posts),
+            "unique_collaborators": len(collaboration_names),
+        },
+    )
     open_questions = [
         "¿Por qué algunas publicaciones reciben más likes? El JSON no contiene el motivo de la respuesta.",
         "¿Las colaboraciones cambian el alcance? Harían falta más publicaciones, fechas y un diseño comparativo más controlado.",
@@ -2706,6 +2928,7 @@ def analyze_payloads(
         "secondary_network": cooccurrence_network,
         "context_network": networks["context_network"],
         "findings": findings,
+        "profile_narrative": profile_narrative,
         "open_questions": open_questions,
         "limitations": limitations,
         "quality": {

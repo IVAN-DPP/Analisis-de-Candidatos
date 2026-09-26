@@ -3,11 +3,11 @@
 ## Documento técnico y funcional
 
 **Proyecto:** Atlas / Historia de cuenta  
-**Tipo de aplicación:** informe web local para datos JSON de Instagram  
-**Backend:** Python + Flask  
-**Frontend:** HTML, CSS y JavaScript sin framework  
-**Documento:** guía de arquitectura, funciones, modelos matemáticos y mantenimiento  
-**Fecha de referencia:** 24 de septiembre de 2026
+**Tipo de aplicación:** informe web local para datos JSON de Instagram
+**Backend:** Python + Flask
+**Frontend:** HTML, CSS y JavaScript con Plotly
+**Documento:** guía de arquitectura, funciones, modelos matemáticos y mantenimiento
+**Fecha de referencia:** 25 de septiembre de 2026
 
 ---
 
@@ -24,19 +24,21 @@ ARCHIVOS JSON
      ▼
 ANÁLISIS.PY
      │
-     │  normalización, filtros, estadísticas, series y redes
+     │  normalización, filtros, estadísticas, series, redes y narrativa
      ▼
 FLASK / API
      │
-     │  JSON serializable para el navegador
+     ├── /informe/<nivel>  → una página HTML independiente
+     ├── /api/analysis     → informe serializable
+     └── /assets/plotly.min.js
      ▼
 WEB / DASHBOARD
      │
-     ├── gráficas SVG
-     ├── tablas
+     ├── tablas HTML
+     ├── gráficas Plotly
      ├── mapas de audiencia y redes
-     ├── explicaciones
-     └── hallazgos, preguntas y límites
+     ├── navegación Anterior / Siguiente
+     └── retrato, hallazgos, preguntas y límites
 ```
 
 La decisión central es separar **datos originales**, **datos derivados** y **presentación**. Los JSON no se modifican. El backend produce estructuras derivadas y el frontend las convierte en visuales sin tener que interpretar el JSON manualmente.
@@ -67,7 +69,7 @@ La aplicación permite responder preguntas como:
 3. **Separar hechos de interpretaciones.** Cada gráfica tiene una advertencia sobre lo que no permite concluir.
 4. **Explicar los cálculos.** Los nombres técnicos se traducen a lenguaje claro.
 5. **Mantener el estado simple.** No hay base de datos ni persistencia de informes.
-6. **Preferir la lectura visual.** El frontend utiliza HTML, CSS y SVG para no depender de un framework.
+6. **Preferir la lectura visual.** Cada nivel tiene una página HTML propia y las gráficas usan Plotly para ofrecer tooltips, zoom y responsividad.
 7. **Mantener compatibilidad.** Se conservaron alias de respuestas y funciones antiguas para que herramientas existentes puedan seguir leyendo algunos campos.
 
 ### 1.3 Qué no hace
@@ -93,6 +95,18 @@ Scraping/
 ├── GUIA_ARQUITECTURA.md
 ├── web/
 │   ├── index.html
+│   ├── landing.js
+│   ├── dashboard.css
+│   ├── dashboard.js
+│   ├── pages/
+│   │   ├── resumen.html
+│   │   ├── datos.html
+│   │   ├── publicaciones.html
+│   │   ├── audiencia.html
+│   │   ├── colaboraciones.html
+│   │   ├── redes.html
+│   │   ├── evolucion.html
+│   │   └── hallazgos.html
 │   ├── styles.css
 │   ├── app.js
 │   └── js/
@@ -112,30 +126,46 @@ Es el motor de datos. No depende de Flask y puede probarse por separado. Recibe 
 
 ### 2.2 `app.py`
 
-Es la capa de servidor. Expone la API, carga los JSON iniciales, mantiene el informe actual en memoria, sirve los assets y permite activar autenticación básica mediante variables de entorno.
+Es la capa de servidor. Expone la API, carga los JSON iniciales, mantiene el informe actual en memoria, sirve las páginas HTML, entrega el JavaScript local de Plotly y permite activar autenticación básica mediante variables de entorno.
 
-### 2.3 `web/index.html`
+### 2.3 `web/index.html` y `web/landing.js`
 
-Define la estructura accesible del producto: pantalla de carga, navegación, secciones, tarjetas, tablas, gráficas, redes y cierre. Es la capa semántica; no calcula nada.
+Definen la pantalla de carga. `landing.js` valida los archivos en el navegador, envía un sobre a `/api/analysis` o usa `/api/load-server`, y abre `/informe/resumen` cuando el servidor ya tiene una fuente válida.
 
-### 2.4 `web/styles.css`
+### 2.4 `web/pages/`
+
+Contiene ocho páginas HTML independientes. Cada archivo tiene su propio título, navegación de nivel y contenido; el JavaScript común la completa con el informe y las gráficas. Las rutas son `/informe/resumen`, `/informe/datos`, `/informe/publicaciones`, `/informe/audiencia`, `/informe/colaboraciones`, `/informe/redes`, `/informe/evolucion` y `/informe/hallazgos`.
+
+### 2.5 `web/dashboard.js`
+
+Es el controlador del frontend actual. Controla la carga de la página, el selector de cuenta y alcance, la navegación, las tablas, el retrato narrativo y todas las figuras Plotly. No calcula métricas: consume el informe de `analysis.py`.
+
+### 2.6 `web/dashboard.css`
+
+Define el sistema visual responsive, la tipografía ampliada, tarjetas, tablas, leyendas, botones de navegación y los estados de carga y error.
+
+### 2.7 `web/index.html` (compatibilidad anterior)
+
+Define la estructura accesible del producto: pantalla de carga, navegación, secciones, tarjetas, tablas, gráficas, redes y cierre. Es la capa semántica; no calcula nada. Se conserva como compatibilidad y no es la ruta principal del dashboard actual.
+
+### 2.8 `web/styles.css` (compatibilidad anterior)
 
 Define el sistema visual: colores, tipografía, tarjetas, distribución responsive, tablas, gráficas, redes, estados vacíos y modalidades de lectura. No contiene lógica de análisis.
 
-### 2.5 `web/app.js`
+### 2.9 `web/app.js` (compatibilidad anterior)
 
-Es el controlador del frontend. Mantiene el estado visual, consume la API, dibuja gráficas SVG, actualiza tablas, controla eventos y genera las explicaciones visibles.
+Es el controlador del frontend heredado. Mantiene el estado visual, consume la API, dibuja gráficas SVG, actualiza tablas, controla eventos y genera las explicaciones visibles. Las páginas nuevas usan `dashboard.js` y Plotly.
 
-### 2.6 Módulos JavaScript secundarios
+### 2.10 Módulos JavaScript secundarios
 
 `web/js/charts.js`, `web/js/formatters.js`, `web/js/network-layout.js` y `web/js/network-camera.js` son módulos de la versión anterior y se conservan como compatibilidad y para las pruebas. El dashboard actual no los importa: utiliza sus propias funciones de dibujo en `web/app.js`. Esto evita acoplar el nuevo diseño a una disposición antigua, pero los módulos siguen siendo parte del repositorio y deben documentarse si se mantienen.
 
-### 2.7 Tests
+### 2.11 Tests
 
 - `tests/test_analysis.py` prueba normalización,alcances, comentarios, campos y compatibilidad con los JSON disponibles.
 - `tests/test_app.py` prueba el estado, las rutas, la carga de archivos y la entrega de assets.
 
-### 2.8 JSON de ejemplo
+### 2.12 JSON de ejemplo
 
 Los archivos `Cesar.json`, `Daniela.json`, `Hader.json` y `Maira.json` son fuentes de datos de trabajo. Están ignorados para nuevas adiciones por `.gitignore`, pero ya forman parte del historial del proyecto. La aplicación nunca los modifica.
 
@@ -143,7 +173,17 @@ Los archivos `Cesar.json`, `Daniela.json`, `Hader.json` y `Maira.json` son fuent
 
 ## 3. Flujo completo de una petición
 
-### 3.1 Carga desde el navegador
+### 3.0 Navegación por páginas
+
+1. La portada valida y carga la fuente en memoria.
+2. Flask recibe el sobre y responde a `/api/analysis`.
+3. El navegador abre `/informe/resumen`.
+4. Cada página HTML declara su nivel mediante `data-page` y carga `dashboard.js`.
+5. El controlador obtiene el informe con la cuenta y el alcance elegidos.
+6. Los botones **Anterior** y **Siguiente** son enlaces reales a otra página HTML; no hay que hacer scroll automático entre secciones de una SPA.
+7. Al cambiar de nivel se conserva el estado del servidor y se vuelve a dibujar sólo la página solicitada.
+
+### 3.1 Carga desde el navegador (interfaz actual)
 
 1. La persona selecciona o arrastra uno o varios archivos.
 2. `uploadFiles()` lee cada archivo con `File.text()`.
@@ -160,7 +200,7 @@ Los archivos `Cesar.json`, `Daniela.json`, `Hader.json` y `Maira.json` son fuent
 
 5. Se envía un `POST` a `/api/analysis`.
 6. El servidor valida, analiza y devuelve el informe.
-7. `renderAll()` actualiza todas las secciones.
+7. En la interfaz actual, la respuesta se conserva en el estado de Flask y la página HTML solicita el nivel que necesita. El flujo de `renderAll()` queda reservado para la interfaz heredada.
 
 ### 3.2 Carga desde el servidor
 
@@ -886,13 +926,21 @@ Carga todos los JSON del servidor en memoria y devuelve el informe.
 
 Lista archivos y tamaños.
 
+### `GET /assets/plotly.min.js`
+
+Entrega el JavaScript de Plotly desde el paquete local. La respuesta se memoriza para no regenerar el bundle en cada petición.
+
+### `GET /informe/<page>`
+
+Entrega una de las ocho páginas HTML independientes. `PAGE_FILES` limita los nombres válidos y evita que la ruta se convierta en una lectura arbitraria del sistema.
+
 ### `GET /GUIA_DE_ANALISIS.md`
 
 Entrega la guía de datos y cálculos como Markdown.
 
 ### `serve_static(path)`
 
-Sirve `index.html`, CSS y JavaScript. Si una ruta no existe, devuelve la portada.
+Sirve `index.html`, CSS, JavaScript, Plotly local y las páginas HTML. Las rutas `/informe/<page>` se resuelven antes para entregar el HTML del nivel solicitado.
 
 ## 5.5 Compatibilidad y ejecución
 
@@ -912,9 +960,42 @@ El bloque `if __name__ == "__main__"` carga opcionalmente un dataset inicial y a
 
 <div class="page-break"></div>
 
-## 6. Capa frontend
+## 6. Capa de presentación
 
-## 6.1 `web/index.html`
+La interfaz vigente se divide en una portada y ocho páginas HTML. La sección 6.1 describe la portada; las páginas de nivel y el controlador Plotly se documentan a continuación. Las subsecciones del panel antiguo se conservan como compatibilidad.
+
+## 6.1 `web/index.html` y `web/landing.js`
+
+La portada sólo carga la fuente. `landing.js` lee uno o varios archivos, comprueba el límite de 100 MB, construye un sobre `files` y hace `POST /api/analysis`. Si ya existe estado, muestra un enlace para continuar. No calcula ninguna métrica.
+
+## 6.2 Páginas HTML de nivel
+
+Cada archivo bajo `web/pages/` tiene un `data-page`, una cabecera propia, selectores de cuenta/alcance, un contenedor `#pageContent` y enlaces de navegación. El servidor los entrega en `/informe/<page>`; no se renderizan todas las secciones en un documento largo.
+
+La secuencia es:
+
+```text
+resumen → datos → publicaciones → audiencia
+         → colaboraciones → redes → evolucion → hallazgos
+```
+
+## 6.3 `web/dashboard.js`
+
+El controlador común obtiene el informe y selecciona una función de render según `document.body.dataset.page`. `renderResumen`, `renderDatos`, `renderPublicaciones`, `renderAudience`, `renderColaboraciones`, `renderNetworks`, `renderEvolution` y `renderFindings` construyen el HTML de esa página.
+
+Las funciones `barPlot`, `linePlot`, `boxPlot`, `boxGroupsPlot`, `heatmapPlot` y `networkPlot` entregan trazas a `window.Plotly.newPlot`. El ranking de publicaciones usa etiquetas `Publicación 1`, `Publicación 2`, etc., y mantiene una lista de enlaces reales junto al histograma. La línea temporal separa likes de la actividad editorial. No se usa Matplotlib. Plotly se carga desde `/assets/plotly.min.js`, por lo que la aplicación no necesita un CDN.
+
+## 6.4 `web/dashboard.css`
+
+El sistema visual usa una base tipográfica de 16 px, títulos grandes, tarjetas con contraste, botones de 44 px, tablas responsive y una leyenda de cuatro colores en Evolución. Las páginas se adaptan a una columna en móvil.
+
+## 6.5 `profile_narrative`
+
+`analysis.py` añade un bloque narrativo al informe. No es un diagnóstico: seis dimensiones (ritmo, contenido, respuesta, conversación, colaboración y red) convierten los datos en una lectura de la cuenta, pero cada una muestra su evidencia y su límite. La página de Hallazgos lo presenta antes de los hallazgos estadísticos.
+
+## 6.6 Panel heredado
+
+### `web/index.html` (compatibilidad anterior)
 
 El documento se divide en:
 
@@ -932,7 +1013,7 @@ El documento se divide en:
 
 Cada gráfica tiene un contenedor con `id`. JavaScript lo busca con `$()` y reemplaza su contenido. Esta separación permite que HTML sea estable y que el código visual sea dinámico.
 
-## 6.2 Estado de `web/app.js`
+### 6.7 Estado de `web/app.js`
 
 El objeto `state` contiene:
 
@@ -946,7 +1027,7 @@ loading           estado de carga
 toastTimer        temporizador de notificaciones
 ```
 
-## 6.3 Funciones de formato y seguridad
+### 6.8 Funciones de formato y seguridad
 
 ### `formatNumber(value)`
 
@@ -980,7 +1061,7 @@ Formatea fecha y, opcionalmente, hora.
 
 Convierte `YYYY-MM` en una etiqueta corta.
 
-## 6.4 Feedback y API
+### 6.9 Feedback y API
 
 ### `showToast(message, error)`
 
@@ -1093,7 +1174,7 @@ Conecta la dispersión con el panel de rendimiento.
 
 ### `renderExceptions()`
 
-Muestra tarjetas de publicaciones exceptional.
+Muestra tarjetas de publicaciones excepcionales.
 
 ### `renderContentTypes()`
 
@@ -1339,7 +1420,8 @@ python -m unittest discover -s tests -v
 ### Comprobación de JavaScript
 
 ```bash
-node --check web/app.js
+node --check web/dashboard.js
+node --check web/landing.js
 ```
 
 ### Comprobación de Python
@@ -1350,16 +1432,19 @@ python -m py_compile analysis.py app.py
 
 ### Qué se prueba
 
-- normalización de usernames;
+- normalización de nombres de usuario;
 - selección de cuenta;
 - alcances;
 - comentarios y cuentas;
 - contexto;
 - JSON disponibles;
 - carga de servidor;
-- transactional upload;
+- carga transaccional;
 - estado inicial;
-- rutas de assets.
+- rutas de assets;
+- páginas `/informe/<page>` y navegación;
+- disponibilidad de Plotly local;
+- presencia de `profile_narrative` y sus límites.
 
 ### Qué falta como prueba futura
 
@@ -1368,7 +1453,7 @@ python -m py_compile analysis.py app.py
 - duplicados entre archivos;
 - publicaciones sin fecha;
 - campos `-1`;
-- graphs de red con componentes;
+- gráficas de red con componentes;
 - pruebas end-to-end del navegador.
 
 <div class="page-break"></div>
@@ -1383,9 +1468,9 @@ Se eligió el procesamiento estándar porque los JSON son pequeños y se procesa
 
 Se eligió JavaScript nativo para que el producto sea fácil de desplegar y no dependa de Node en ejecución. El estado es pequeño y se gestiona con un objeto `state`.
 
-### Opción elegida: SVG
+### Opción elegida: Plotly
 
-SVG permite dibujar líneas, barras, redes y nodos sin descargar una librería externa. También permite cambiar colores y tamaños desde el código.
+Plotly se distribuye como JavaScript local desde la dependencia Python `plotly`. Ofrece barras, líneas, dispersión, cajas, heatmaps y redes interactivas sin usar Matplotlib ni depender de un CDN. El bundle se sirve desde `/assets/plotly.min.js` y se memoriza en el servidor.
 
 ### Alternativa: React/Vue
 
@@ -1479,7 +1564,8 @@ Esta lista funciona como mapa de lectura del código.
 | `_build_comparison` | Colaborativas vs. no colaborativas. |
 | `_content_summary` | Resumen por tipo. |
 | `_build_exceptions` | Valores atípicos. |
-| `_build_findings` | Hallazgos. |
+| `_build_findings` | Hallazgos con evidencia y advertencia. |
+| `_build_profile_narrative` | Retrato descriptivo de la cuenta. |
 | `_data_coverage` | Cobertura. |
 | `_cross_file_links` | Cruces entre archivos. |
 | `_describe_file` | Inventario de archivo. |
@@ -1522,12 +1608,31 @@ Esta lista funciona como mapa de lectura del código.
 | `load_server_files` | Carga todos los archivos. |
 | `sources` | Lista fuentes. |
 | `analysis_guide` | Entrega guía. |
+| `report_index` | Entrega la primera página. |
+| `report_page` | Entrega la página HTML del nivel. |
+| `plotly_asset` | Sirve Plotly local. |
 | `serve_static` | Assets y portada. |
 | `find_default_dataset` | Compatibilidad. |
 | `make_handler` | Handler de pruebas. |
 | `_parse_args` | CLI. |
 
-### Frontend `web/app.js`
+### Frontend actual `web/dashboard.js`
+
+| Función | Responsabilidad |
+|---|---|
+| `apiJson` | Consulta la API y muestra errores. |
+| `loadData` | Carga el informe de la página actual. |
+| `renderShell` | Activa la navegación y la posición del nivel. |
+| `renderHeader` | Carga cuenta, alcance y cobertura. |
+| `barPlot` / `linePlot` | Barras y líneas Plotly. |
+| `boxPlot` / `boxGroupsPlot` | Distribuciones individual y comparada. |
+| `heatmapPlot` | Matriz Plotly. |
+| `networkPlot` | Red Plotly con nodos y aristas. |
+| `renderNarrative` | Presenta el retrato de la cuenta. |
+| `renderResumen` a `renderFindings` | Renderizan una página por nivel. |
+| `downloadPosts` | Exporta publicaciones a CSV. |
+
+### Frontend heredado `web/app.js`
 
 | Función | Responsabilidad |
 |---|---|
@@ -1639,16 +1744,24 @@ Para agregar un nuevo tipo de evento, por ejemplo respuestas a comentarios:
 
 Para agregar un nuevo gráfico:
 
-1. Crear un `id` HTML.
-2. Añadir un contenedor de explicación.
-3. Implementar la función de render.
-4. Llamarla desde `renderAll()`.
+1. Crear un contenedor con `id` en la página HTML correspondiente.
+2. Añadir la explicación de qué muestra y qué no permite concluir.
+3. Implementar una función que entregue trazas a `Plotly.newPlot`.
+4. Llamarla desde la función `render...` del nivel.
 5. Añadir leyenda si hay colores.
 6. Comprobar que funciona sin datos.
 
+Para agregar una página:
+
+1. Crear el HTML en `web/pages/`.
+2. Añadir su clave a `PAGE_FILES` y su entrada en `PAGE_ORDER`/`PAGE_META` del frontend.
+3. Implementar su función de render.
+4. Añadir el enlace anterior/siguiente y la navegación superior.
+5. Probar la ruta `/informe/<page>` y el estado sin fuente.
+
 ## 15. Conclusión
 
-La arquitectura fue diseñada para ser pequeña, transparente y explicable. El sistema no intenta fabricar una verdad completa a partir de datos parciales. Separa:
+La arquitectura fue diseñada para ser pequeña, transparente y explicable. Flask mantiene el estado, cada nivel tiene una página HTML propia y Plotly hace interactivas las gráficas. El sistema no intenta fabricar una verdad completa a partir de datos parciales. Separa:
 
 - lo que Instagram o el scraper entregó;
 - lo que la aplicación pudo identificar;

@@ -4,18 +4,35 @@ import argparse
 import json
 import os
 import threading
+from functools import lru_cache
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from typing import Any
 from urllib.parse import parse_qs, urlparse
 
-from flask import Flask, jsonify, request, send_from_directory
+from flask import Flask, Response, jsonify, request, send_from_directory
+
+try:
+    from plotly.offline import get_plotlyjs
+except ImportError:  # pragma: no cover - se informa con una respuesta clara.
+    get_plotlyjs = None
 
 from analysis import DatasetBundle, DatasetError, analyze_payloads, determine_main_account
 
 BASE_DIR = Path(__file__).resolve().parent
 WEB_ROOT = BASE_DIR / "web"
 MAX_DATASET_BYTES = 100 * 1024 * 1024
+PAGE_FILES = {
+    "resumen": "resumen.html",
+    "datos": "datos.html",
+    "publicaciones": "publicaciones.html",
+    "audiencia": "audiencia.html",
+    "colaboraciones": "colaboraciones.html",
+    "redes": "redes.html",
+    "evolucion": "evolucion.html",
+    "hallazgos": "hallazgos.html",
+    "guia": "guia.html",
+}
 
 
 class DashboardState:
@@ -151,6 +168,46 @@ def _load_server_files() -> list[dict[str, Any]]:
             continue
         files.append({"name": path.name, "payload": payload})
     return files
+
+
+@lru_cache(maxsize=1)
+def _plotly_bundle() -> str:
+    """Devuelve el JavaScript de Plotly desde la dependencia local."""
+
+    if get_plotlyjs is None:
+        return ""
+    return get_plotlyjs()
+
+
+@app.route("/assets/plotly.min.js", methods=["GET"])
+def plotly_asset():
+    """Sirve Plotly localmente para que el dashboard no dependa de un CDN."""
+
+    bundle = _plotly_bundle()
+    if not bundle:
+        return Response(
+            "/* Instala plotly para habilitar las gráficas. */",
+            status=503,
+            mimetype="application/javascript; charset=utf-8",
+        )
+    response = Response(bundle, mimetype="application/javascript; charset=utf-8")
+    response.headers["Cache-Control"] = "public, max-age=86400"
+    return response
+
+
+@app.route("/informe", methods=["GET"])
+def report_index():
+    return send_from_directory(WEB_ROOT / "pages", PAGE_FILES["resumen"])
+
+
+@app.route("/informe/<page>", methods=["GET"])
+def report_page(page: str):
+    filename = PAGE_FILES.get(page)
+    if not filename:
+        return send_from_directory(WEB_ROOT, "index.html")
+    response = send_from_directory(WEB_ROOT / "pages", filename)
+    response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
+    return response
 
 
 @app.route("/api/health", methods=["GET"])

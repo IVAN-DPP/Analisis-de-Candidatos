@@ -3,11 +3,12 @@ from __future__ import annotations
 import json
 import threading
 import unittest
+from pathlib import Path
 from http.server import ThreadingHTTPServer
 from urllib.error import HTTPError
 from urllib.request import Request, urlopen
 
-from app import DashboardState, find_default_dataset, make_handler
+from app import DashboardState, app as flask_app, find_default_dataset, make_handler
 
 
 class AppIntegrationTests(unittest.TestCase):
@@ -150,6 +151,24 @@ class AppIntegrationTests(unittest.TestCase):
         _, current = self.get_json("/api/analysis")
         self.assertEqual(current["source_name"], "uploaded.json")
         self.assertEqual(current["main"]["username"], "uploaded_main")
+    def test_dashboard_navigation_uses_spanish_page_keys(self) -> None:
+        source = Path("web/dashboard.js").read_text(encoding="utf-8")
+        self.assertIn('"resumen", "datos", "publicaciones", "audiencia"', source)
+        self.assertNotIn('"resumen", "datos", "publications", "audiencia"', source)
+
+    def test_report_pages_and_plotly_asset(self) -> None:
+        client = flask_app.test_client()
+        for page in ("resumen", "datos", "publicaciones", "audiencia", "colaboraciones", "redes", "evolucion", "hallazgos"):
+            response = client.get(f"/informe/{page}")
+            self.assertEqual(response.status_code, 200)
+            self.assertIn(f'data-page="{page}"', response.get_data(as_text=True))
+            self.assertIn("Anterior", response.get_data(as_text=True))
+            self.assertIn("Siguiente", response.get_data(as_text=True))
+            response.close()
+        plotly = client.get("/assets/plotly.min.js")
+        self.assertEqual(plotly.status_code, 200)
+        self.assertIn("plotly", plotly.get_data(as_text=True)[:200].lower())
+        plotly.close()
 
 
 if __name__ == "__main__":

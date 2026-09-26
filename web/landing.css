@@ -1,0 +1,19 @@
+.landing-shell { min-height: 100vh; display: grid; align-content: center; justify-items: center; gap: 22px; padding: 34px 20px; background: radial-gradient(circle at 15% 15%, rgba(239,95,87,.12), transparent 32%), radial-gradient(circle at 85% 80%, rgba(59,110,245,.12), transparent 35%), #f7f8fb; }
+.landing-brand { display: inline-flex; align-items: center; gap: 10px; color: var(--ink-600); font-size: .85rem; font-weight: 850; letter-spacing: .08em; text-transform: uppercase; }
+.landing-card { width: min(100%, 850px); padding: 56px 62px 44px; border: 1px solid var(--line); border-radius: 28px; background: rgba(255,255,255,.94); box-shadow: 0 28px 80px rgba(23,32,51,.13); }
+.landing-card h1 { margin: 12px 0 0; color: var(--ink-950); font-size: clamp(2.8rem, 7vw, 5.3rem); letter-spacing: -.07em; line-height: .95; }
+.landing-card h1 em { color: var(--coral); font-style: normal; }
+.landing-lead { max-width: 680px; margin: 22px 0 0; color: var(--ink-600); font-size: 1.08rem; line-height: 1.7; }
+.drop-zone { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 15px; margin-top: 32px; padding: 19px; border: 1.5px dashed #c6cedc; border-radius: 17px; background: var(--soft); }
+.drop-zone:hover, .drop-zone.dragging, .drop-zone:focus { border-color: var(--coral); background: #fff8f7; outline: none; }
+.upload-icon { display: grid; place-items: center; width: 45px; height: 45px; border-radius: 13px; color: #fff; background: var(--ink-900); font-size: 1.25rem; font-weight: 800; }
+.drop-zone strong { display: block; color: var(--ink-900); }
+.drop-zone small { display: block; margin-top: 3px; color: var(--ink-600); }
+.upload-status { min-height: 28px; margin: 12px 2px 0; color: var(--ink-600); }
+.upload-status.error { color: #a23b36; font-weight: 750; }
+.landing-actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 12px; }
+.landing-link { text-decoration: none; }
+.landing-note { margin-top: 26px; padding: 14px 16px; border: 1px solid #cfe0ff; border-radius: 12px; color: var(--ink-700); background: var(--blue-soft); }
+.landing-footer { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px 18px; color: var(--ink-500); font-size: .82rem; }
+.landing-footer a { color: var(--blue); font-weight: 750; }
+@media (max-width: 650px) { .landing-card { padding: 36px 23px 30px; }.landing-card h1 { font-size: 2.8rem; }.drop-zone { grid-template-columns: auto minmax(0, 1fr); }.drop-zone .primary-button { grid-column: 1 / -1; width: 100%; }.landing-footer { flex-direction: column; align-items: center; } }

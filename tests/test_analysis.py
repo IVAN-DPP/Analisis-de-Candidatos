@@ -151,6 +151,11 @@ class AnalysisTests(unittest.TestCase):
         ])
         self.assertEqual(monthly["total_collaborations"], 1)
 
+        narrative = result["profile_narrative"]
+        self.assertIn("Retrato provisional", narrative["title"])
+        self.assertEqual(len(narrative["dimensions"]), 6)
+        self.assertTrue(narrative["limits"])
+
         context = result["context_network"]
         self.assertEqual(context["summary"]["unique_locations"], 1)
         self.assertEqual(context["summary"]["unique_music_items"], 1)

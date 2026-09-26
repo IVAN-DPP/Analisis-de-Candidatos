@@ -1,2 +1,3 @@
 flask
 gunicorn
+plotly>=5.18

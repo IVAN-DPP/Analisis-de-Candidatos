@@ -1,0 +1,516 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="description" content="Guía interactiva del informe de Instagram: conceptos, fórmulas y ejemplos." />
+  <title>Guía de análisis · Historia de cuenta</title>
+  <link rel="stylesheet" href="/dashboard.css" />
+  <style>
+    .guide-hero { background: linear-gradient(135deg, #eef3ff 0%, #f8f4ff 100%); border-radius: 16px; padding: 32px; margin-bottom: 24px; }
+    .guide-hero h2 { font-size: 28px; margin: 0 0 12px; color: #172033; }
+    .guide-hero p { font-size: 16px; line-height: 1.6; color: #42506a; max-width: 720px; }
+    .guide-toc { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 12px; margin-bottom: 32px; }
+    .guide-toc a { display: block; padding: 16px; background: #f4f6fb; border-radius: 10px; text-decoration: none; color: #172033; font-weight: 500; transition: background .15s; }
+    .guide-toc a:hover { background: #e8ecf5; }
+    .guide-toc a .toc-num { display: inline-block; width: 28px; height: 28px; line-height: 28px; text-align: center; background: #3b6ef5; color: #fff; border-radius: 50%; font-size: 14px; font-weight: 700; margin-right: 8px; }
+    .guide-section { margin-bottom: 40px; }
+    .guide-section h2 { font-size: 24px; color: #172033; border-bottom: 2px solid #e0e6f0; padding-bottom: 8px; margin-bottom: 20px; }
+    .guide-section h3 { font-size: 18px; color: #172033; margin: 20px 0 10px; }
+    .guide-section p { line-height: 1.7; color: #42506a; }
+    .example-box { background: #f0f7f4; border-left: 4px solid #1d9a6c; border-radius: 0 10px 10px 0; padding: 16px 20px; margin: 16px 0; }
+    .example-box .example-label { font-size: 13px; font-weight: 700; text-transform: uppercase; color: #1d9a6c; letter-spacing: .5px; margin-bottom: 8px; }
+    .example-box p { margin: 6px 0; }
+    .example-box code { background: #d6ebe0; padding: 2px 6px; border-radius: 4px; font-size: 14px; }
+    .tech-box { background: #f4f6fb; border-left: 4px solid #3b6ef5; border-radius: 0 10px 10px 0; padding: 16px 20px; margin: 16px 0; }
+    .tech-box .tech-label { font-size: 13px; font-weight: 700; text-transform: uppercase; color: #3b6ef5; letter-spacing: .5px; margin-bottom: 8px; }
+    .tech-box p { margin: 6px 0; }
+    .tech-box code { background: #dce6f7; padding: 2px 6px; border-radius: 4px; font-size: 14px; }
+    .tech-box pre { background: #172033; color: #e0e6f0; padding: 16px; border-radius: 8px; overflow-x: auto; font-size: 14px; line-height: 1.6; margin: 12px 0; }
+    .warning-box { background: #fff8f0; border-left: 4px solid #e89a24; border-radius: 0 10px 10px 0; padding: 16px 20px; margin: 16px 0; }
+    .warning-box .warning-label { font-size: 13px; font-weight: 700; text-transform: uppercase; color: #e89a24; letter-spacing: .5px; margin-bottom: 8px; }
+    .guide-table { width: 100%; border-collapse: collapse; margin: 16px 0; }
+    .guide-table th { background: #f4f6fb; padding: 10px 14px; text-align: left; font-size: 14px; color: #42506a; }
+    .guide-table td { padding: 10px 14px; border-bottom: 1px solid #e0e6f0; font-size: 14px; color: #42506a; }
+    .guide-table tr:hover td { background: #fafbfd; }
+    .interactive-demo { background: #fff; border: 2px solid #e0e6f0; border-radius: 12px; padding: 24px; margin: 20px 0; }
+    .interactive-demo h4 { margin: 0 0 16px; color: #172033; }
+    .demo-row { display: flex; gap: 12px; align-items: center; margin: 12px 0; flex-wrap: wrap; }
+    .demo-row label { font-weight: 500; color: #42506a; min-width: 100px; }
+    .demo-row input, .demo-row select { padding: 8px 12px; border: 1px solid #d0d7e3; border-radius: 8px; font-size: 14px; }
+    .demo-output { background: #f4f6fb; border-radius: 8px; padding: 12px 16px; margin-top: 12px; font-size: 15px; color: #172033; min-height: 40px; }
+    .btn-calc { background: #3b6ef5; color: #fff; border: none; padding: 10px 20px; border-radius: 8px; font-size: 14px; font-weight: 600; cursor: pointer; }
+    .btn-calc:hover { background: #2f5de0; }
+    .likert-scale { display: flex; gap: 0; margin: 12px 0; border-radius: 8px; overflow: hidden; border: 1px solid #d0d7e3; }
+    .likert-scale div { flex: 1; text-align: center; padding: 10px; font-size: 13px; background: #fff; }
+    .likert-scale div:nth-child(odd) { background: #f4f6fb; }
+    .likert-scale .likert-label { font-weight: 600; color: #172033; }
+  </style>
+</head>
+<body data-page="guia">
+  <header class="topbar">
+    <a class="brand" href="/informe/resumen"><span class="brand-mark">◎</span><span class="brand-copy"><strong>Historia de cuenta</strong><small>Informe visual</small></span></a>
+    <nav class="top-nav" aria-label="Secciones"><a data-page="resumen" href="/informe/resumen">Resumen</a><a data-page="datos" href="/informe/datos">Datos</a><a data-page="publicaciones" href="/informe/publicaciones">Publicaciones</a><a data-page="audiencia" href="/informe/audiencia">Audiencia</a><a data-page="colaboraciones" href="/informe/colaboraciones">Colaboraciones</a><a data-page="redes" href="/informe/redes">Redes</a><a data-page="evolucion" href="/informe/evolucion">Evolución</a><a data-page="hallazgos" href="/informe/hallazgos">Hallazgos</a><a data-page="guia" href="/informe/guia">Guía</a></nav>
+    <div class="top-actions"><span id="sourceName" class="source-chip">Sin fuente cargada</span><a class="outline-button" href="/">Cambiar JSON</a></div>
+  </header>
+  <main class="page-shell">
+    <section class="page-hero"><div><p class="page-kicker">Guía interactiva</p><h1 id="pageTitle">Guía de análisis</h1><p id="pageDescription">Conceptos, fórmulas y ejemplos para entender cada sección del informe.</p></div></section>
+    <div id="pageContent" class="page-content">
+      <div class="guide-hero">
+        <h2>¿Cómo leer este informe?</h2>
+        <p>Esta guía explica cada concepto con un <strong>ejemplo sencillo</strong> y su <strong>definición técnica</strong>. Puedes navegar por las secciones o usar los enlaces rápidos. Al final hay una calculadora interactiva para practicar.</p>
+      </div>
+
+      <nav class="guide-toc" aria-label="Secciones de la guía">
+        <a href="#qué-es"><span class="toc-num">1</span>Qué es este informe</a>
+        <a href="#cuenta-principal"><span class="toc-num">2</span>Cuenta principal y alcances</a>
+        <a href="#diccionario"><span class="toc-num">3</span>Diccionario de datos</a>
+        <a href="#formulas"><span class="toc-num">4</span>Fórmulas y cálculos</a>
+        <a href="#distribuciones"><span class="toc-num">5</span>Distribuciones y excepciones</a>
+        <a href="#evolucion"><span class="toc-num">6</span>Evolución temporal</a>
+        <a href="#audiencia"><span class="toc-num">7</span>Audiencia y recurrencia</a>
+        <a href="#concentracion"><span class="toc-num">8</span>Concentración y Gini</a>
+        <a href="#colaboraciones"><span class="toc-num">9</span>Colaboraciones</a>
+        <a href="#redes"><span class="toc-num">10</span>Redes</a>
+        <a href="#matriz"><span class="toc-num">11</span>Matriz publicación × cuenta</a>
+        <a href="#correlaciones"><span class="toc-num">12</span>Correlaciones</a>
+      </nav>
+
+      <!-- 1. QUÉ ES -->
+      <section id="qué-es" class="guide-section">
+        <h2>1. Qué es este informe</h2>
+        <p>Convierte archivos JSON de Instagram en un informe visual. Describe <strong>lo que se observa</strong> en los datos, sin afirmar causas ni predecir el futuro.</p>
+        <div class="example-box">
+          <div class="example-label">Ejemplo sencillo</div>
+          <p>Si una publicación tiene 500 likes y otra tiene 50, el informe dice: "estas dos publicaciones tienen niveles de likes muy distintos". <strong>No dice</strong> por qué una tiene más que la otra.</p>
+        </div>
+        <div class="tech-box">
+          <div class="tech-label">Definición técnica</div>
+          <p>El informe es <strong>descriptivo</strong>: calcula indicadores (promedios, percentiles, redes) sobre los datos disponibles. No infiere causalidad, no calcula p-valores ni hace predicciones.</p>
+        </div>
+      </section>
+
+      <!-- 2. CUENTA PRINCIPAL -->
+      <section id="cuenta-principal" class="guide-section">
+        <h2>2. Cuenta principal y alcances</h2>
+        <p>La <strong>cuenta principal</strong> es la que se analiza. Puede elegirse manualmente o detectarse automáticamente como la que publica más.</p>
+        <table class="guide-table">
+          <thead><tr><th>Alcance</th><th>Qué inclu</th><th>Cuándo usarlo</th></tr></thead>
+          <tbody>
+            <tr><td><strong>Publicaciones propias</strong></td><td>Sólo las publicadas por la cuenta principal</td><td>Analizar el contenido directo</td></tr>
+            <tr><td><strong>Propias y colaboraciones</strong></td><td>Propias + publicaciones de otras cuentas donde aparece la principal como invitada</td><td>Ver todo lo que involucra a la cuenta</td></tr>
+            <tr><td><strong>Todos los registros</strong></td><td>Todo lo que hay en los archivos, sea de quien sea</td><td>Comparar el conjunto completo</td></tr>
+          </tbody>
+        </table>
+        <div class="example-box">
+          <div class="example-label">Ejemplo sencillo</div>
+          <p>Imagina que <code>@ana</code> publica 10 fotos, pero también aparece en 3 publicaciones de <code>@carlos</code> como coautor. Con alcance "propias" analizas 10; con "propias y colaboraciones" analizas 13; con "todos" analizas todo lo que haya en el archivo.</p>
+        </div>
+        <div class="warning-box">
+          <div class="warning-label">Precaución</div>
+          <p>En "todos los registros" se mezclan autoras. Los likes y comentarios pueden corresponder a publicaciones de otras personas.</p>
+        </div>
+      </section>
+
+      <!-- 3. DICCIONARIO -->
+      <section id="diccionario" class="guide-section">
+        <h2>3. Diccionario de datos</h2>
+
+        <h3>Publicación</h3>
+        <p>Es un contenido de Instagram: imagen, vídeo, reel o carrusel.</p>
+        <div class="example-box">
+          <div class="example-label">Ejemplo sencillo</div>
+          <p>Una foto de Instagram con texto, 150 likes y 12 comentarios es una publicación. El <code>shortCode</code> es como su "DNI" en la URL: <code>instagram.com/p/Cx8K2...</code></p>
+        </div>
+        <div class="tech-box">
+          <div class="tech-label">Campos técnicos</div>
+          <p><code>id</code> (identificador interno), <code>shortCode</code> (código de la URL), <code>ownerUsername</code> (autora), <code>timestamp</code> (fecha), <code>likesCount</code> (likes totales), <code>commentsCount</code> (comentarios totales), <code>coauthorProducers</code> (coautores), <code>taggedUsers</code> (etiquetados).</p>
+        </div>
+
+        <h3>Like</h3>
+        <p>Dos cosas distintas:</p>
+        <ul>
+          <li><strong>Like agregado</strong> (<code>likesCount</code>): un número total. Permite comparar publicaciones.</li>
+          <li><strong>Like identificado</strong>: un registro que dice quién dio like. Permite construir una tabla de audiencia.</li>
+        </ul>
+        <div class="example-box">
+          <div class="example-label">Ejemplo sencillo</div>
+          <p>Si una publicación tiene <code>likesCount: 500</code>, sabemos que recibió 500 likes en total. Si además hay una lista <code>likers: ["@luis", "@maria", "@pedro"]</code>, sabemos quiénes fueron. En los archivos actuales <strong>no hay identidades de likes</strong>, sólo el número agregado.</p>
+        </div>
+
+        <h3>Comentario</h3>
+        <ul>
+          <li><strong>Comentarios reportados</strong> (<code>commentsCount</code>): el total que Instagram informa.</li>
+          <li><strong>Comentarios capturados</strong>: los que aparecen en <code>latestComments</code> (una muestra reciente).</li>
+        </ul>
+        <div class="example-box">
+          <div class="example-label">Ejemplo sencillo</div>
+          <p>Instagram dice que una publicación tiene 500 comentarios, pero el archivo sólo guarda los 12 más recientes. El informe analiza esos 12, pero no puede decir nada de los otros 488.</p>
+        </div>
+
+        <h3>Colaboración</h3>
+        <p>Una cuenta que aparece como coautora en una publicación (normalmente en <code>coauthorProducers</code>).</p>
+        <div class="example-box">
+          <div class="example-label">Ejemplo sencillo</div>
+          <p>Si <code>@ana</code> y <code>@carlos</code> publican juntos una foto, la aplicación cuenta <strong>1 colaboración</strong> para <code>@carlos</code>. Si <code>@carlos</code> aparece en 3 publicaciones de <code>@ana</code>, cuenta como 3 colaboraciones.</p>
+        </div>
+        <div class="warning-box">
+          <div class="warning-label">Precaución</div>
+          <p>Una colaboración es una asociación técnica registrada en el archivo. No demuestra amistad, relación personal ni política.</p>
+        </div>
+      </section>
+
+      <!-- 4. FÓRMULAS -->
+      <section id="formulas" class="guide-section">
+        <h2>4. Fórmulas y cálculos</h2>
+
+        <h3>Promedio</h3>
+        <pre>promedio = suma de likes / número de publicaciones</pre>
+        <div class="example-box">
+          <div class="example-label">Ejemplo sencillo</div>
+          <p>3 publicaciones con 10, 20 y 30 likes: <code>(10 + 20 + 30) / 3 = 20</code>. El promedio es 20 likes.</p>
+        </div>
+
+        <h3>Mediana</h3>
+        <p>Ordena los valores y toma el del medio.</p>
+        <div class="example-box">
+          <div class="example-label">Ejemplo sencillo</div>
+          <p>Valores: 10, 20, <strong>30</strong>, 40, 500. La mediana es <strong>30</strong>. El promedio sería 120 (por el 500). La mediana describe mejor lo "normal".</p>
+        </div>
+
+        <h3>Desviación estándar</h3>
+        <pre>desviación = raíz(media de (likes - promedio)²)</pre>
+        <div class="example-box">
+          <div class="example-label">Ejemplo sencillo</div>
+          <p>Si todas las publicaciones tienen ~20 likes, la desviación es pequeña (son parecidas). Si una tiene 10 y otra 1000, la desviación es grande (son muy distintas).</p>
+        </div>
+
+        <h3>Percentiles</h3>
+        <div class="example-box">
+          <div class="example-label">Ejemplo sencillo</div>
+          <p>Con 100 publicaciones ordenadas por likes: el <strong>P25</strong> es el valor en la posición 25 (el 25% tiene menos o igual). El <strong>P50</strong> es la mediana. El <strong>P90</strong> es el valor en la posición 90 (solo el 10% supera).</p>
+        </div>
+
+        <h3>Posición relativa</h3>
+        <pre>posición = (likes de la publicación - promedio) / promedio</pre>
+        <div class="example-box">
+          <div class="example-label">Ejemplo sencillo</div>
+          <p>Promedio = 20. Una publicación con 30 likes: <code>(30 - 20) / 20 = +0.5</code> (50% sobre el promedio). Una con 10: <code>(10 - 20) / 20 = -0.5</code> (50% por debajo).</p>
+        </div>
+      </section>
+
+      <!-- 5. DISTRIBUCIONES -->
+      <section id="distribuciones" class="guide-section">
+        <h2>5. Distribuciones y publicaciones excepcionales</h2>
+
+        <h3>Histograma</h3>
+        <p>Agrupa las publicaciones en rangos de likes. Muestra si la mayoría está en un nivel o hay varios grupos.</p>
+        <div class="example-box">
+          <div class="example-label">Ejemplo sencillo</div>
+          <p>Imagina que 8 publicaciones tienen 10-50 likes y 2 tienen 200-500. El histograma muestra dos picos: uno grande (la mayoría) y uno pequeño (las excepcionales).</p>
+        </div>
+
+        <h3>Caja y bigotes</h3>
+        <div class="example-box">
+          <div class="example-label">Ejemplo sencillo</div>
+          <p>La caja va del P25 al P75 (donde está la mitad de las publicaciones). La línea de dentro es la mediana. Los bigotes llegan hasta los valores "normales". Los puntos fuera son los extremos.</p>
+        </div>
+
+        <h3>Valores atípicos</h3>
+        <pre>atípico si: > P75 + 1.5 × (P75 - P25)  O  a 2+ desviaciones del promedio</pre>
+        <div class="example-box">
+          <div class="example-label">Ejemplo sencillo</div>
+          <p>Si el P25 = 10 y el P75 = 30, entonces <code>P75 + 1.5 × (30 - 10) = 60</code>. Cualquier publicación con más de 60 likes se marca como excepcional.</p>
+        </div>
+        <div class="warning-box">
+          <div class="warning-label">Precaución</div>
+          <p>Una publicación excepcional no se marca "porque sí": sigue una regla estadística. No dice por qué tiene más likes.</p>
+        </div>
+      </section>
+
+      <!-- 6. EVOLUCIÓN -->
+      <section id="evolucion" class="guide-section">
+        <h2>6. Evolución temporal</h2>
+        <p>Las series agrupan publicaciones por mes. Las que no tienen fecha no se inventan.</p>
+        <table class="guide-table">
+          <thead><tr><th>Color</th><th>Serie</th><th>Significado</th></tr></thead>
+          <tbody>
+            <tr><td>Azul</td><td>Publicaciones</td><td>Número de publicaciones del mes</td></tr>
+            <tr><td>Coral</td><td>Likes conocidos</td><td>Suma de likes con dato en el mes</td></tr>
+            <tr><td>Ámbar</td><td>Comentarios reportados</td><td>Suma de commentsCount del mes</td></tr>
+            <tr><td>Verde</td><td>Colaboraciones</td><td>Cuentas colaboradoras distintas por mes</td></tr>
+          </tbody>
+        </table>
+        <div class="example-box">
+          <div class="example-label">Ejemplo sencillo</div>
+          <p>Si en marzo hubo 5 publicaciones con 200 likes en total, la gráfica muestra un punto azul en 5 y un punto coral en 200 para marzo.</p>
+        </div>
+        <div class="warning-box">
+          <div class="warning-label">Precaución</div>
+          <p>Que dos líneas suban juntas no significa que una cause la otra. Es una coincidencia temporal, no una relación causal.</p>
+        </div>
+      </section>
+
+      <!-- 7. AUDIENCIA -->
+      <section id="audiencia" class="guide-section">
+        <h2>7. Audiencia y recurrencia</h2>
+
+        <h3>Categorías de recurrencia</h3>
+        <table class="guide-table">
+          <thead><tr><th>Categoría</th><th>Regla</th><th>Lectura</th></tr></thead>
+          <tbody>
+            <tr><td><strong>Ocasional</strong></td><td>1 interacción o 1 mes</td><td>Aparece poco</td></tr>
+            <tr><td><strong>Recurrente</strong></td><td>Más de 1 interacción y más de 1 mes</td><td>Vuelve a aparecer</td></tr>
+            <tr><td><strong>Persistente</strong></td><td>3+ interacciones y 3+ meses (o 60 días)</td><td>Aparece varias veces en un periodo largo</td></tr>
+          </tbody>
+        </table>
+        <div class="example-box">
+          <div class="example-label">Ejemplo sencillo</div>
+          <p><code>@luis</code> comenta una vez en enero → <strong>Ocasional</strong>. <code>@maria</code> comenta en enero, febrero y marzo → <strong>Recurrente</strong>. <code>@pedro</code> comenta 5 veces entre enero y abril → <strong>Persistente</strong>.</p>
+        </div>
+
+        <h3>Mapa de audiencia</h3>
+        <p>La cuenta principal está al centro. Cada nodo es una cuenta identificada. El tamaño indica la frecuencia.</p>
+        <ul>
+          <li>Azul: interacción por comentarios</li>
+          <li>Verde: interacción por likes</li>
+          <li>Morado: ambos tipos</li>
+        </ul>
+        <div class="warning-box">
+          <div class="warning-label">Precaución</div>
+          <p>El mapa muestra <strong>cuentas identificadas</strong>, no todos los seguidores. Sin identidades de likes, el mapa se construye con comentarios.</p>
+        </div>
+      </section>
+
+      <!-- 8. CONCENTRACIÓN -->
+      <section id="concentracion" class="guide-section">
+        <h2>8. Concentración, Lorenz y Gini</h2>
+
+        <h3>Índice de Gini</h3>
+        <pre>G = (2 × suma(i × x(i))) / (n × suma(x)) - (n + 1) / n</pre>
+        <div class="example-box">
+          <div class="example-label">Ejemplo sencillo</div>
+          <p>Si 10 cuentas tienen 10 likes cada una, Gini = 0 (todos iguales). Si 1 cuenta tiene 100 likes y las otras 9 tienen 0, Gini ≈ 1 (muy concentrado).</p>
+        </div>
+
+        <h3>Curva de Lorenz</h3>
+        <div class="example-box">
+          <div class="example-label">Ejemplo sencillo</div>
+          <p>La diagonal es "todos tienen lo mismo". Si la curva se aleja mucho de la diagonal, hay pocas cuentas concentrando muchos likes.</p>
+        </div>
+
+        <h3>Top 5, 10, 20</h3>
+        <pre>participación del grupo N = interacciones del grupo N / todas las interacciones</pre>
+        <div class="example-box">
+          <div class="example-label">Ejemplo sencillo</div>
+          <p>Si las 10 cuentas más activas concentran el 35% de todas las interacciones, significa que esas 10 de quizá 100 cuentas generan más de un tercio de la actividad observada.</p>
+        </div>
+      </section>
+
+      <!-- 9. COLABORACIONES -->
+      <section id="colaboraciones" class="guide-section">
+        <h2>9. Colaboraciones</h2>
+        <p>Se cuentan las cuentas colaboradoras distintas por publicación. Si una cuenta aparece en 3 publicaciones, cuenta como 3.</p>
+        <div class="example-box">
+          <div class="example-label">Ejemplo sencillo</div>
+          <p><code>@ana</code> publica con <code>@carlos</code> (1 vez) y con <code>@luis</code> (2 veces). Total: 3 colaboraciones (1 con carlos, 2 con luis).</p>
+        </div>
+        <div class="warning-box">
+          <div class="warning-label">Precaución</div>
+          <p>Comparar likes entre publicaciones colaborativas y no colaborativas es una <strong>observación</strong>. No demuestra que colaborar cause más likes: puede influir el formato, la fecha o el tema.</p>
+        </div>
+      </section>
+
+      <!-- 10. REDES -->
+      <section id="redes" class="guide-section">
+        <h2>10. Redes</h2>
+
+        <h3>Tipos de red</h3>
+        <table class="guide-table">
+          <thead><tr><th>Red</th><th>Nodos</th><th>Aristas</th><th>Peso</th></tr></thead>
+          <tbody>
+            <tr><td><strong>Interacción</strong></td><td>Cuentas</td><td>Interacción con la principal</td><td>Nº de interacciones</td></tr>
+            <tr><td><strong>Colaboración</strong></td><td>Cuentas</td><td>Coautoría</td><td>Nº de publicaciones</td></tr>
+            <tr><td><strong>Coincidencia</strong></td><td>Cuentas</td><td>Aparecen en la misma publicación</td><td>Nº de publicaciones compartidas</td></tr>
+          </tbody>
+        </table>
+
+        <h3>Intermediación (betweenness)</h3>
+        <div class="example-box">
+          <div class="example-label">Ejemplo sencillo</div>
+          <p>Si <code>@maria</code> es la única conexión entre el grupo A y el grupo B, ella tiene alta intermediación: muchos caminos pasan por ella. No significa que sea "líder", sólo que ocupa una posición de puente.</p>
+        </div>
+
+        <h3>Grado</h3>
+        <div class="example-box">
+          <div class="example-label">Ejemplo sencillo</div>
+          <p>Si <code>@pedro</code> aparece en 5 publicaciones con la cuenta principal, su grado es 5. Si además tiene 10 interacciones en total, su grado ponderado es 10.</p>
+        </div>
+        <div class="warning-box">
+          <div class="warning-label">Precaución</div>
+          <p>Una red describe conexiones del archivo, no una jerarquía social. Alta intermediación no significa liderazgo real.</p>
+        </div>
+      </section>
+
+      <!-- 11. MATRIZ -->
+      <section id="matriz" class="guide-section">
+        <h2>11. Matriz publicación × cuenta</h2>
+        <p>Cada fila es una cuenta, cada columna una publicación. El valor es el número de interacciones identificadas.</p>
+        <div class="example-box">
+          <div class="example-label">Ejemplo sencillo</div>
+          <p>Si <code>@luis</code> comentó la publicación 1 y la publicación 3, la fila de luis tiene un 1 en esas columnas y 0 en las demás.</p>
+        </div>
+        <div class="warning-box">
+          <div class="warning-label">Precaución</div>
+          <p>La matriz no representa la audiencia completa. Es una muestra de identidades disponibles. Un 0 no significa "no le gustó", sino "no se identificó".</p>
+        </div>
+      </section>
+
+      <!-- 12. CORRELACIONES -->
+      <section id="correlaciones" class="guide-section">
+        <h2>12. Correlaciones</h2>
+
+        <h3>Pearson</h3>
+        <p>Mide si dos variables se mueven juntas de forma aproximadamente lineal.</p>
+        <div class="example-box">
+          <div class="example-label">Ejemplo sencillo</div>
+          <p>Si las publicaciones con más likes también tienen más comentarios, la correlación de Pearson es positiva. Si las que tienen más likes tienen menos comentarios, es negativa.</p>
+        </div>
+
+        <h3>Spearman</h3>
+        <p>Similar pero basado en el orden, no en los valores exactos. Menos sensible a valores extremos.</p>
+        <div class="example-box">
+          <div class="example-label">Ejemplo sencillo</div>
+          <p>Si la publicación con más likes también es la que más comentarios tiene, y la que menos likes tiene también es la que menos comentarios tiene, Spearman es alta (aunque los números exactos sean muy distintos).</p>
+        </div>
+
+        <h3>Escala de fuerza</h3>
+        <div class="likert-scale">
+          <div><span class="likert-label">&lt; 0.2</span><br>muy débil</div>
+          <div><span class="likert-label">0.2 – 0.4</span><br>débil</div>
+          <div><span class="likert-label">0.4 – 0.6</span><br>moderada</div>
+          <div><span class="likert-label">0.6 – 0.8</span><br>fuerte</div>
+          <div><span class="likert-label">0.8+</span><br>muy fuerte</div>
+        </div>
+        <div class="warning-box">
+          <div class="warning-label">Precaución</div>
+          <p>Correlación no es causalidad. Dos variables pueden moverse juntas porque una tercera afecta a ambas, o por pura coincidencia.</p>
+        </div>
+      </section>
+
+      <!-- CALCULADORA INTERACTIVA -->
+      <section id="calculadora" class="guide-section">
+        <h2>Calculadora interactiva</h2>
+        <p>Practica con estos ejemplos. Ingresa valores y calcula promedio, mediana y percentiles.</p>
+
+        <div class="interactive-demo">
+          <h4>Calculadora de likes</h4>
+          <div class="demo-row">
+            <label for="demoLikes">Likes (separados por coma):</label>
+            <input type="text" id="demoLikes" value="10, 20, 30, 40, 50" style="flex:1" />
+            <button class="btn-calc" id="btnCalc" type="button">Calcular</button>
+          </div>
+          <div class="demo-output" id="demoOutput">Ingresa valores y presiona Calcular</div>
+        </div>
+
+        <div class="interactive-demo">
+          <h4>Calculadora de Gini (simplificada)</h4>
+          <div class="demo-row">
+            <label for="demoGini">Interacciones por cuenta:</label>
+            <input type="text" id="demoGini" value="1, 1, 1, 1, 1, 1, 1, 1, 1, 10" style="flex:1" />
+            <button class="btn-calc" id="btnGini" type="button">Calcular Gini</button>
+          </div>
+          <div class="demo-output" id="giniOutput">Ingresa valores y presiona Calcular</div>
+        </div>
+
+        <div class="interactive-demo">
+          <h4>Calculadora de correlación</h4>
+          <div class="demo-row">
+            <label for="demoX">Variable X:</label>
+            <input type="text" id="demoX" value="1, 2, 3, 4, 5" style="flex:1" />
+          </div>
+          <div class="demo-row">
+            <label for="demoY">Variable Y:</label>
+            <input type="text" id="demoY" value="2, 4, 6, 8, 10" style="flex:1" />
+            <button class="btn-calc" id="btnCorr" type="button">Calcular Pearson</button>
+          </div>
+          <div class="demo-output" id="corrOutput">Ingresa valores y presiona Calcular</div>
+        </div>
+      </section>
+
+      <!-- LECTURA RESPONSABLE -->
+      <section id="lectura" class="guide-section">
+        <h2>Lectura responsable</h2>
+        <p>La pregunta correcta no es "¿esta persona es influyente?", sino:</p>
+        <div class="example-box">
+          <div class="example-label">Pregunta clave</div>
+          <p><em>"¿Qué relación observable aparece en estos archivos, con qué cobertura y qué límites?"</em></p>
+        </div>
+        <div class="warning-box">
+          <div class="warning-label">Límites de los archivos actuales</div>
+          <p>Los cuatro JSON del proyecto (Cesar, Daniela, Hader, Maira) contienen <code>likesCount</code> pero <strong>no identidades de likes</strong>. Por eso: las gráficas de likes son válidas como métricas agregadas, pero la audiencia visible se construye con comentarios identificados.</p>
+        </div>
+      </section>
+    </div>
+    <nav class="page-nav" aria-label="Navegación entre niveles"><a id="previousPage" href="/informe/hallazgos">← Anterior</a><span id="pagePosition" class="page-position"></span><a id="nextPage" class="disabled" href="#" aria-disabled="true">Siguiente →</a></nav>
+  </main>
+  <footer class="site-footer"><span>Historia de cuenta · procesamiento local y sin modificar los originales</span><span><a href="/GUIA_DE_ANALISIS.md" target="_blank" rel="noopener noreferrer">Guía técnica (MD)</a> · <a href="/GUIA_ARQUITECTURA.pdf" target="_blank" rel="noopener noreferrer">Arquitectura</a></span></footer>
+
+  <script>
+    // Calculadora de likes
+    document.getElementById('btnCalc').addEventListener('click', () => {
+      const input = document.getElementById('demoLikes').value;
+      const values = input.split(',').map(v => parseFloat(v.trim())).filter(v => !isNaN(v));
+      if (!values.length) { document.getElementById('demoOutput').textContent = 'Ingresa al menos un valor.'; return; }
+      const sorted = [...values].sort((a, b) => a - b);
+      const sum = values.reduce((a, b) => a + b, 0);
+      const mean = sum / values.length;
+      const median = values.length % 2 ? sorted[Math.floor(values.length / 2)] : (sorted[values.length / 2 - 1] + sorted[values.length / 2]) / 2;
+      const p25 = sorted[Math.floor(0.25 * (sorted.length - 1))];
+      const p75 = sorted[Math.floor(0.75 * (sorted.length - 1))];
+      const p90 = sorted[Math.floor(0.90 * (sorted.length - 1))];
+      document.getElementById('demoOutput').innerHTML = `<strong>Promedio:</strong> ${mean.toFixed(1)} · <strong>Mediana:</strong> ${median} · <strong>P25:</strong> ${p25} · <strong>P75:</strong> ${p75} · <strong>P90:</strong> ${p90} · <strong>Máximo:</strong> ${Math.max(...values)}`;
+    });
+
+    // Calculadora de Gini
+    document.getElementById('btnGini').addEventListener('click', () => {
+      const input = document.getElementById('demoGini').value;
+      const values = input.split(',').map(v => parseFloat(v.trim())).filter(v => !isNaN(v) && v >= 0);
+      if (values.length < 2) { document.getElementById('giniOutput').textContent = 'Ingresa al menos 2 valores.'; return; }
+      const sorted = [...values].sort((a, b) => a - b);
+      const n = sorted.length;
+      const sum = sorted.reduce((a, b) => a + b, 0);
+      if (sum === 0) { document.getElementById('giniOutput').textContent = 'Todos los valores son cero. Gini = 0.'; return; }
+      let weightedSum = 0;
+      sorted.forEach((v, i) => { weightedSum += (i + 1) * v; });
+      const gini = (2 * weightedSum) / (n * sum) - (n + 1) / n;
+      document.getElementById('giniOutput').innerHTML = `<strong>Gini:</strong> ${gini.toFixed(3)} — ${gini < 0.3 ? 'Reparto relativamente uniforme' : gini < 0.6 ? 'Concentración moderada' : 'Concentración alta'}`;
+    });
+
+    // Calculadora de Pearson
+    document.getElementById('btnCorr').addEventListener('click', () => {
+      const xInput = document.getElementById('demoX').value;
+      const yInput = document.getElementById('demoY').value;
+      const x = xInput.split(',').map(v => parseFloat(v.trim())).filter(v => !isNaN(v));
+      const y = yInput.split(',').map(v => parseFloat(v.trim())).filter(v => !isNaN(v));
+      if (x.length !== y.length || x.length < 3) { document.getElementById('corrOutput').textContent = 'Ingresa la misma cantidad de valores (mínimo 3) en ambas variables.'; return; }
+      const n = x.length;
+      const sumX = x.reduce((a, b) => a + b, 0);
+      const sumY = y.reduce((a, b) => a + b, 0);
+      const sumXY = x.reduce((acc, _, i) => acc + x[i] * y[i], 0);
+      const sumX2 = x.reduce((a, b) => a + b * b, 0);
+      const sumY2 = y.reduce((a, b) => a + b * b, 0);
+      const numerator = n * sumXY - sumX * sumY;
+      const denominator = Math.sqrt((n * sumX2 - sumX * sumX) * (n * sumY2 - sumY * sumY));
+      if (denominator === 0) { document.getElementById('corrOutput').textContent = 'No se puede calcular: una variable es constante.'; return; }
+      const r = numerator / denominator;
+      let strength = 'muy débil';
+      if (Math.abs(r) >= 0.8) strength = 'muy fuerte';
+      else if (Math.abs(r) >= 0.6) strength = 'fuerte';
+      else if (Math.abs(r) >= 0.4) strength = 'moderada';
+      else if (Math.abs(r) >= 0.2) strength = 'débil';
+      document.getElementById('corrOutput').innerHTML = `<strong>Pearson:</strong> ${r.toFixed(3)} — Asociación <strong>${strength}</strong> (${r > 0 ? 'positiva' : 'negativa'})`;
+    });
+  </script>
+</body>
+</html>

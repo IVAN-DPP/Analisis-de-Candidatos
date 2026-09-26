@@ -515,8 +515,9 @@ Cada hallazgo intenta seguir esta estructura:
 Hallazgo → evidencia → visualización → advertencia
 ```
 
-Las preguntas abiertas son cosas que los datos sugieren investigar, pero que no pueden responder por sí solos. Las limitaciones indican:
+Las preguntas abiertas son cosas que los datos sugieren investigar, pero que no pueden responder por sí solos. El informe añade un `profile_narrative` con seis dimensiones —ritmo, contenido, respuesta, conversación, colaboración y red— para ofrecer una lectura más humana de la cuenta sin convertir datos en un diagnóstico. Cada dimensión conserva evidencia, pregunta y límite.
 
+Las limitaciones indican:
 - qué campos faltan;
 - qué cobertura es parcial;
 - qué diferencia hay entre likes agregados e interacciones identificadas;
@@ -559,7 +560,7 @@ Por eso:
 - Los nombres originales se conservan para mostrar la fuente.
 - Los identificadores se normalizan para unir registros, pero la información original se conserva en la fuente.
 - El informe no necesita enviar los archivos a un servicio externo.
-- La aplicación Flask sirve el informe localmente y puede protegerse con `ADMIN_USER` y `ADMIN_PASSWORD` en el servidor.
+- La aplicación Flask sirve el dashboard visual por páginas HTML independientes y puede protegerse con `ADMIN_USER` y `ADMIN_PASSWORD` en el servidor.
 
 Para una lectura responsable, la pregunta correcta no es “¿esta persona es influyente?”, sino:
 
